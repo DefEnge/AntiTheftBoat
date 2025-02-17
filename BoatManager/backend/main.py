@@ -1,5 +1,6 @@
 import os
-from flask import Flask
+from flask import Flask, jsonify
+from flask_cors import CORS
 import requests
 import binascii
 import time
@@ -153,14 +154,13 @@ def send_register(device: str):
             and response_as.status_code == 200
             and response_js.status_code == 200
         ):
-            return (
-                "registered the new device "
-                + device
-                + "with DevEui:"
-                + str(deveui_x)
-                + "AppKey:"
-                + str(appkey_x)
-            )
+            response = {
+                "DeviceId": device,
+                "DevEui": str(deveui_x),
+                "AppKey": str(appkey_x),
+            }
+
+            return jsonify(response)
         else:
             print(response_ns.status_code)
             print(response_ns.text)
@@ -221,7 +221,7 @@ def get_devices():
     response = requests.get(url, headers=headers)
     if response.status_code == 200:
         print("okay")
-        return response.text
+        return jsonify(response.json())
     else:
         print(response.status_code)
         print(response.text)
@@ -229,6 +229,7 @@ def get_devices():
 
 
 app = Flask(__name__)
+CORS(app, resources={r"/*": {"origins": "*"}})
 
 
 @app.route("/register/<deviceid>")

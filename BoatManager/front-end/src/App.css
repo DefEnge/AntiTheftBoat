@@ -1,3 +1,4 @@
+
 * {
   margin: 0;
   padding: 0;
@@ -97,11 +98,12 @@ button:active {
 .device-list li {
   background-color: #2c2c2c; /* Slightly lighter black */
   padding: 15px;
-  margin: 10px 0;
+  margin: 15px 0; /* Increased margin to add more space between each device block */
   border-radius: 8px;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column; /* Stack items vertically */
+  justify-content: center;
+  align-items: flex-start;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.4);
 }
 
@@ -112,6 +114,11 @@ button:active {
 .device-list li span {
   color: #e0f7fa; /* Light blue text */
   font-size: 1.1rem;
+  margin-bottom: 10px; /* Add spacing between each piece of information */
+}
+
+.device-list li span:last-child {
+  margin-bottom: 0; /* Remove margin from the last span */
 }
 
 .device-list li button {
@@ -122,6 +129,7 @@ button:active {
   border-radius: 8px;
   border: none;
   transition: background-color 0.3s ease;
+  margin-top: 15px; /* Add some space between the information and button */
 }
 
 .device-list li button:hover {

@@ -3,13 +3,20 @@ import axios from "axios";
 
 const ManagementPage: React.FC = () => {
   const [deviceId, setDeviceId] = useState<string>("");
-  const [message, setMessage] = useState<string | null>(null);
+  const [devEui, setDevEui] = useState<string>("");
+  const [appKey, setAppKey] = useState<string>("");
+  const [message, setMessage] = useState<string>(null);
 
   const handleAddDevice = async () => {
     try {
-      console.log(deviceId);
-      await axios.get("http://127.0.0.1:5000/register/" + deviceId);
       setDeviceId("");
+      setDevEui("");
+      setAppKey("");
+      const response = await axios.get("http://127.0.0.1:5000/register/" + deviceId);
+      console.log(response.data)
+      setDeviceId(response.data.DeviceId);
+      setDevEui(response.data.DevEui);
+      setAppKey(response.data.AppKey);
       setMessage("Device added successfully!");
     } catch (error) {
       console.error("Error adding device", error);
@@ -19,8 +26,10 @@ const ManagementPage: React.FC = () => {
 
   const handleDeleteDevice = async () => {
     try {
-      await axios.get("http://localhost:5000/delete/" + deviceId);
+      await axios.get("http://127.0.0.1:5000/delete/" + deviceId);
       setDeviceId("");
+      setDevEui("");
+      setAppKey("");
       setMessage("Device deleted successfully!");
     } catch (error) {
       console.error("Error deleting device", error);
@@ -43,6 +52,9 @@ const ManagementPage: React.FC = () => {
       </div>
 
       {message && <div className="alert">{message}</div>}
+      {deviceId && <div className="alert">{"DeviceId: " + deviceId}</div>}
+      {devEui && <div className="alert">{"DevEui: " + devEui}</div>}
+      {appKey && <div className="alert">{"Appkey: " + appKey}</div>}
     </div>
   );
 };
