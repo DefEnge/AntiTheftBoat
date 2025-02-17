@@ -1,24 +1,19 @@
 import os
-from flask import Flask
+from flask import Flask, jsonify
+from flask_cors import CORS
 import requests
 import binascii
 import time
+from dotenv import load_dotenv
 
+load_dotenv()
 
-def send_data():
-    url = "https://eu1.cloud.thethings.network/api/v3/as/applications/anti-theft-boat0/webhooks/test-webhook/devices/guardplace-device/down/push"
+APIKEY = os.getenv("APIKEY")
 
-    headers = {
-        "Authorization": "Bearer NNSXS.",
-        "Content-Type": "application/json",
-        "User-Agent": "my-integration/my-integration-version",
-    }
-
-    data = {"downlinks": [{"frm_payload": "test", "f_port": 15, "priority": "NORMAL"}]}
-
-    response = requests.post(url, headers=headers, json=data)
-
-    return "all good"
+headers = {
+    "Authorization": "Bearer " + str(APIKEY),
+    "Content-Type": "application/json",
+}
 
 
 def send_register(device: str):
@@ -27,9 +22,6 @@ def send_register(device: str):
 
     appkey_b = os.urandom(16)
     appkey_x = binascii.hexlify(appkey_b).decode("utf-8").upper()
-
-    # deveui_x = "70B3D57ED006E210"
-    # appkey_x = "7052DAE80D8406DB38D2532B10D92348"
 
     url = "https://eu1.cloud.thethings.network/api/v3/applications/anti-theft-boat0/devices"
     nsurl = (
@@ -44,12 +36,6 @@ def send_register(device: str):
         "https://eu1.cloud.thethings.network/api/v3/js/applications/anti-theft-boat0/devices/"
         + device
     )
-
-    headers = {
-        "Authorization": "Bearer NNSXS",
-        "Content-Type": "application/json",
-    }
-
     data = {
         "end_device": {
             "ids": {
@@ -168,7 +154,13 @@ def send_register(device: str):
             and response_as.status_code == 200
             and response_js.status_code == 200
         ):
-            return "registered the new device"
+            response = {
+                "DeviceId": device,
+                "DevEui": str(deveui_x),
+                "AppKey": str(appkey_x),
+            }
+
+            return jsonify(response)
         else:
             print(response_ns.status_code)
             print(response_ns.text)
@@ -191,59 +183,63 @@ def delete_device(device: str):
         "https://eu1.cloud.thethings.network/api/v3/applications/anti-theft-boat0/devices/"
         + device
     )
-
-    headers = {
-        "Authorization": "Bearer NNSXS",
-        "Content-Type": "application/json",
-        "User-Agent": "my-integration/my-integration-version",
-    }
+    nsurl = (
+        "https://eu1.cloud.thethings.network/api/v3/ns/applications/anti-theft-boat0/devices/"
+        + device
+    )
+    asurl = (
+        "https://eu1.cloud.thethings.network/api/v3/as/applications/anti-theft-boat0/devices/"
+        + device
+    )
+    jsurl = (
+        "https://eu1.cloud.thethings.network/api/v3/js/applications/anti-theft-boat0/devices/"
+        + device
+    )
 
     response = requests.delete(url, headers=headers)
 
-    if response.status_code == 200:
-        return "delete succesfully"
-    else:
-        print(response.status_code)
-        print(response.text)
-        return "erro"
+    responsens = requests.delete(nsurl, headers=headers)
+    responseas = requests.delete(asurl, headers=headers)
+    responsejs = requests.delete(jsurl, headers=headers)
 
-
-def get_devices():
-    url = "https://eu1.cloud.thethings.network/api/v3/applications/anti-theft-boat0/devices"
-
-    headers = {
-        "Authorization": "Bearer NNSXS",
-        "Content-Type": "application/json",
-    }
-
-    response = requests.get(url, headers=headers)
-    if response.status_code == 200:
-        print("okay")
-        return response.text
+    if (
+        response.status_code == 200
+        and responsens.status_code == 200
+        and responseas.status_code == 200
+        and responsejs.status_code == 200
+    ):
+        return "delete succesfully" + device
     else:
         print(response.status_code)
         print(response.text)
         return "err"
 
 
-# Initialize the Flask application
+def get_devices():
+    url = "https://eu1.cloud.thethings.network/api/v3/applications/anti-theft-boat0/devices"
+
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        print("okay")
+        return jsonify(response.json())
+    else:
+        print(response.status_code)
+        print(response.text)
+        return "err"
+
+
 app = Flask(__name__)
+CORS(app, resources={r"/*": {"origins": "*"}})
 
 
-# Define a route for the home page
-@app.route("/downlink")
-def downlink():
-    return send_data()
+@app.route("/register/<deviceid>")
+def register(deviceid):
+    return send_register(deviceid)
 
 
-@app.route("/register")
-def register():
-    return send_register("funziona")
-
-
-@app.route("/delete")
-def delete():
-    return delete_device("funziona")
+@app.route("/delete/<deviceid>")
+def delete(deviceid):
+    return delete_device(deviceid)
 
 
 @app.route("/devices")
