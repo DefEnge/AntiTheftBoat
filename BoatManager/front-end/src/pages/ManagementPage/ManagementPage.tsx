@@ -14,17 +14,42 @@ const ManagementPage: React.FC = () => {
   const [message, setMessage] = useState<string>("");
 
   const handleAddDevice = async () => {
+    //try {
+    //  setDeviceId("");
+    //  setDevEui("");
+    //  setCognome("");
+    //  setNome("");
+    //  setAppKey("");
+    //  const response = await axios.get("http://127.0.0.1:5000/register/" + deviceId);
+    //  console.log(response.data)
+    //  setDeviceId(response.data.DeviceId);
+    //  setDevEui(response.data.DevEui);
+    //  setAppKey(response.data.AppKey);
+    //  setMessage("Device added successfully!");
+    //} catch (error) {
+    //  console.error("Error adding device", error);
+    //  setMessage("Error adding device.");
+    //}
     try {
-      setDeviceId("");
-      setDevEui("");
-      setCognome("");
-      setNome("");
-      setAppKey("");
-      const response = await axios.get("http://127.0.0.1:5000/register/" + deviceId);
-      console.log(response.data)
-      setDeviceId(response.data.DeviceId);
-      setDevEui(response.data.DevEui);
-      setAppKey(response.data.AppKey);
+      setMessage(""); // Clear previous messages
+
+      const requestData = {
+        deviceId,
+        cognome,
+        nome,
+        targa
+      };
+
+      const response = await axios.post("http://127.0.0.1:5000/register", requestData, {
+        headers: { "Content-Type": "application/json" }
+      });
+
+      console.log(response.data);
+
+      // Update state with the response
+      setDeviceId(response.data.deviceId);
+      setDevEui(response.data.devEui);
+      setAppKey(response.data.appKey);
       setMessage("Device added successfully!");
     } catch (error) {
       console.error("Error adding device", error);
