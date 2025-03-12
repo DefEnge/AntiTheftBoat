@@ -310,7 +310,20 @@ def delete(deviceid):
 
 @app.route("/devices")
 def list_devices():
-    return get_devices()
+    devices = Device.query.all()
+    return jsonify(
+        [
+            {
+                "deviceId": d.device_id,
+                "nome": d.nome,
+                "cognome": d.cognome,
+                "targa": d.targa,
+            }
+            for d in devices
+        ]
+    )
+    # usare per prendere da ttn;
+    # return get_devices()
 
 
 # Run the Flask app
