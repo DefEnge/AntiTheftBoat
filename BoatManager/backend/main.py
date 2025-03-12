@@ -1,6 +1,7 @@
 import os
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from flask_cors import CORS
+from flask_sqlalchemy import SQLAlchemy
 import requests
 import binascii
 import time
@@ -9,14 +10,13 @@ from dotenv import load_dotenv
 load_dotenv()
 
 APIKEY = os.getenv("APIKEY")
-
 headers = {
     "Authorization": "Bearer " + str(APIKEY),
     "Content-Type": "application/json",
 }
 
 
-def send_register(device: str):
+def send_register(device: str, name: str, surname: str, plate: str):
     deveui_b = os.urandom(8)
     deveui_x = binascii.hexlify(deveui_b).decode("utf-8").upper()
 
@@ -158,9 +158,16 @@ def send_register(device: str):
                 "DeviceId": device,
                 "DevEui": str(deveui_x),
                 "AppKey": str(appkey_x),
+                "message": "Device added successfully",
+                "device": {
+                    "deviceId": device,
+                    "nome": name,
+                    "cognome": surname,
+                    "targa": plate,
+                },
+                "status": 200,
             }
-
-            return jsonify(response)
+            return response
         else:
             print(response_ns.status_code)
             print(response_ns.text)
@@ -171,11 +178,11 @@ def send_register(device: str):
             print(response_js.status_code)
             print(response_js.text)
             print("-----------------------")
-            return "ERROR"
+            return "err"
     else:
         print(response.status_code)
         print(response.text)
-        return "erro"
+        return "err"
 
 
 def delete_device(device: str):
@@ -231,20 +238,92 @@ def get_devices():
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
 
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+app.config["SQLALCHEMY_DATABASE_URI"] = (
+    f"sqlite:///{os.path.join(BASE_DIR, 'devices.db')}"
+)
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
-@app.route("/register/<deviceid>")
-def register(deviceid):
-    return send_register(deviceid)
+db = SQLAlchemy(app)
+
+
+class Device(db.Model):
+    id = db.Column(
+        db.Integer, primary_key=True, autoincrement=True
+    )  # Primary key with auto-increment
+    device_id = db.Column(db.String(100), nullable=False, unique=True)
+    nome = db.Column(db.String(100), nullable=False)
+    cognome = db.Column(db.String(100), nullable=False)
+    targa = db.Column(db.String(20), nullable=False)
+
+
+with app.app_context():
+    db.create_all()
+
+
+@app.route("/register/", methods=["POST"])
+def register():
+    input_json = request.get_json(force=True)
+    if not input_json:
+        return jsonify({"error": "No json received"}), 400
+
+    device_id = input_json.get("deviceId")
+    name = input_json.get("nome")
+    surname = input_json.get("cognome")
+    plate = input_json.get("targa")
+
+    if not all([device_id, name, surname, plate]):
+        return jsonify({"error": "Missing required fields"}), 400
+
+    respons = send_register(device_id, name, surname, plate)
+    if respons != "err":
+        new_device = Device(
+            device_id=input_json["deviceId"],
+            nome=input_json["nome"],
+            cognome=input_json["cognome"],
+            targa=input_json["targa"],
+        )
+
+        db.session.add(new_device)
+        db.session.commit()
+    return jsonify({"message": "Device added", "device": input_json}), 201
 
 
 @app.route("/delete/<deviceid>")
 def delete(deviceid):
-    return delete_device(deviceid)
+    try:
+        respons = delete_device(deviceid)
+        device = Device.query.filter_by(device_id=deviceid).first()
+
+        if not device or respons == "err":
+            return jsonify({"error": f"Device with ID {deviceid} not found"}), 404
+
+        # Delete the device
+        db.session.delete(device)
+        db.session.commit()
+
+        return jsonify({"message": f"Device {deviceid} deleted successfully"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/devices")
 def list_devices():
-    return get_devices()
+    devices = Device.query.all()
+    return jsonify(
+        [
+            {
+                "deviceId": d.device_id,
+                "nome": d.nome,
+                "cognome": d.cognome,
+                "targa": d.targa,
+            }
+            for d in devices
+        ]
+    )
+    # usare per prendere da ttn;
+    # return get_devices()
 
 
 # Run the Flask app
