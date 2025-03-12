@@ -261,8 +261,8 @@ with app.app_context():
     db.create_all()
 
 
-@app.route("/register/<deviceid>", methods=["POST"])
-def register(deviceid):
+@app.route("/register/", methods=["POST"])
+def register():
     input_json = request.get_json(force=True)
     if not input_json:
         return jsonify({"error": "No json received"}), 400
