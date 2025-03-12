@@ -236,7 +236,9 @@ def get_devices():
 
 
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "*"}})
+
+CORS(app)
+
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 app.config["SQLALCHEMY_DATABASE_URI"] = (
@@ -261,7 +263,7 @@ with app.app_context():
     db.create_all()
 
 
-@app.route("/register/", methods=["POST"])
+@app.route("/register", methods=["POST"])
 def register():
     input_json = request.get_json(force=True)
     if not input_json:
