@@ -261,7 +261,7 @@ with app.app_context():
     db.create_all()
 
 
-@app.route("/register/", methods=["POST"])
+@app.route("/register", methods=["POST"])
 def register():
     input_json = request.get_json(force=True)
     if not input_json:
@@ -286,7 +286,7 @@ def register():
 
         db.session.add(new_device)
         db.session.commit()
-    return jsonify({"message": "Device added", "device": input_json}), 201
+    return jsonify({"message": "Device added", "device": respons}), 201
 
 
 @app.route("/delete/<deviceid>")
