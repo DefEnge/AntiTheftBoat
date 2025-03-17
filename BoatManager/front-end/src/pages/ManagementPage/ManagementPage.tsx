@@ -31,9 +31,9 @@ const ManagementPage: React.FC = () => {
       console.log(response.data);
 
       // Update state with the response
-      setDeviceId(response.data.deviceId);
-      setDevEui(response.data.devEui);
-      setAppKey(response.data.appKey);
+      setDeviceId(response.data.respons.DeviceId);
+      setDevEui(response.data.respons.DevEui);
+      setAppKey(response.data.respons.AppKey);
       setMessage("Device added successfully!");
     } catch (error) {
       console.error("Error adding device", error);
@@ -92,9 +92,9 @@ const ManagementPage: React.FC = () => {
           </Box>
         </FormWrapper>
         <Box component="div" sx={{ position: "relative", display: " flex", flexWrap: "wrap", flexDirection: "inherit", justifyContent: "space-between" }}>
-          {<Alert>{message}test</Alert>}
-          {<Alert>{"DevEui: " + devEui}</Alert>}
-          {<Alert>{"Appkey: " + appKey}</Alert>}
+          {message && <Alert sx={{ margin: "5%" }}>{message}</Alert>}
+          {devEui && <Alert sx={{ margin: "5%" }}>{"DevEui: " + devEui}</Alert>}
+          {appKey && <Alert sx={{ margin: "5%" }}>{"Appkey: " + appKey}</Alert>}
         </Box>
       </ContentWrapper>
 

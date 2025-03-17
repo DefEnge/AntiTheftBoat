@@ -6,7 +6,11 @@ import { ContentWrapper } from "../../components/Wrapper/style";
 const AlertPage: React.FC = () => {
 	return (
 		<>
-			<NavBar />
+
+			<ContentWrapper>
+				<NavBar />
+
+			</ContentWrapper>
 		</>
 	)
 }

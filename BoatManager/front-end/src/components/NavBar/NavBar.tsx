@@ -1,4 +1,4 @@
-import { Drawer, Box, List, ListItemIcon, ListItem, ListItemButton, ListItemText, Divider } from "@mui/material";
+import { Drawer, Box, List, ListItemIcon, ListItem, ListItemButton, ListItemText, Divider, Badge } from "@mui/material";
 import ManageAccountsIcon from '@mui/icons-material/ManageAccounts';
 import PeopleIcon from '@mui/icons-material/People';
 import CloudIcon from '@mui/icons-material/Cloud';
@@ -7,10 +7,12 @@ import React from "react";
 import { Links, NavLinks } from "../../constants";
 import MenuButton from "../Button/MenuButton";
 import { MenuButtonWrapper } from "../Wrapper/style";
+import { BadgeSharp } from "@mui/icons-material";
 
 const NavBar: React.FC = () => {
 
   const [open, setOpen] = React.useState(false);
+  const [alerts, setAlerts] = React.useState<number>(1);
 
   const toggleDrawer = (newOpen: boolean) => () => {
     setOpen(newOpen);
@@ -24,7 +26,7 @@ const NavBar: React.FC = () => {
       case 'Weather':
         return <CloudIcon />;
       case 'Alert':
-        return < CampaignIcon />;
+        return <Badge color="error" badgeContent={alerts}> < CampaignIcon color="error" /></Badge>;
 
       default:
         return <></>;
