@@ -34,8 +34,6 @@ export const ContentWrapper = styled('div')({
 	flexDirection: "column",
 	background: "",
 	position: "absolute",
-	//top: "50%",
-	//bottom: "50%",
 	width: "100%",
 	height: "0%",
 	justifyContent: "center",
@@ -45,8 +43,8 @@ export const ContentWrapper = styled('div')({
 
 export const FormWrapper = styled('div')({
 	display: "flex",
-	flexWrap: "wrap",
-	position: "absolute",
+	flexDirection: "column",
+	position: "",
 	alignItems: "center",
 	justifyContent: "space-around",
 	background: "white",
