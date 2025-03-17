@@ -288,7 +288,7 @@ def register():
 
         db.session.add(new_device)
         db.session.commit()
-    return jsonify({"message": "Device added", "device": respons}), 201
+    return jsonify({"respons": respons}), 201
 
 
 @app.route("/delete/<deviceid>")
