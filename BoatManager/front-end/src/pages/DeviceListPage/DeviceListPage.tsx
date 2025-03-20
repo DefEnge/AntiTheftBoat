@@ -35,13 +35,14 @@ const DeviceListPage: React.FC = () => {
     const fetchDevices = async () => {
       try {
         const response = await axios.get("http://127.0.0.1:5000/devices");
-        const fetchedDevices: User[] = response.data.end_devices.map((device: any, index: number) => ({
+        //response.data.end_devices.... per leggere da ttn
+        const fetchedDevices: User[] = response.data.map((device: any, index: number) => ({
           id: index + 1,
-          deviceId: device.ids.device_id,
+          deviceId: device.deviceId,
           //devEui: device.ids.dev_eui,
-          nome: "mario",
-          cognome: "rossi",
-          targa: "X000000",
+          nome: device.nome,
+          cognome: device.cognome,
+          targa: device.targa,
         }));
         setRows(fetchedDevices);
       } catch (error) {
