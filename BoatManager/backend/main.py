@@ -3,6 +3,8 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 import requests
+import threading
+import paho.mqtt.client as mqtt
 import binascii
 import time
 from dotenv import load_dotenv
@@ -14,6 +16,36 @@ headers = {
     "Authorization": "Bearer " + str(APIKEY),
     "Content-Type": "application/json",
 }
+
+# MQTT cred
+MQTT_APIKEY = os.getenv("MQTT_APIKEY")
+MQTT_TENANT = os.getenv("MQTT_TENANT")
+MQTT_BROKER = os.getenv("MQTT_BROKER")
+MQTT_PORT = os.getenv("MQTT_PORT")
+APPLICATION_ID = os.getenv("APPLICATION_ID")
+
+
+def on_connect(client, userdata, flags, rc, prop):
+    print("connected with result code " + str(rc))
+    client.subscribe("#")
+
+
+def on_message(client, userdata, msg):
+    topic = str(msg.topic)
+    message = str(msg.payload.decode("utf-8"))
+    print(topic + " " + message)
+
+
+client = mqtt.Client(
+    mqtt.CallbackAPIVersion.VERSION2,
+    client_id="pyintegration",
+    userdata=None,
+    protocol=4,
+)
+client.on_connect = on_connect
+client.on_message = on_message
+client.username_pw_set(APPLICATION_ID, MQTT_APIKEY)
+client.connect(MQTT_BROKER, 1883, 60)
 
 
 def send_register(device: str, name: str, surname: str, plate: str):
@@ -329,5 +361,11 @@ def list_devices():
 
 
 # Run the Flask app
+def mqtt_client():
+    client.loop_forever()
+
+
 if __name__ == "__main__":
+    mqtt_t = threading.Thread(target=mqtt_client)
+    mqtt_t.start()
     app.run(debug=True)
