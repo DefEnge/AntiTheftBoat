@@ -7,7 +7,6 @@ import React from "react";
 import { Links, NavLinks } from "../../constants";
 import MenuButton from "../Button/MenuButton";
 import { MenuButtonWrapper } from "../Wrapper/style";
-import { BadgeSharp } from "@mui/icons-material";
 
 const NavBar: React.FC = () => {
 
