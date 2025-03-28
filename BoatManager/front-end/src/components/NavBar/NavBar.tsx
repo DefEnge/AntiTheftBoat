@@ -3,6 +3,7 @@ import ManageAccountsIcon from '@mui/icons-material/ManageAccounts';
 import PeopleIcon from '@mui/icons-material/People';
 import CloudIcon from '@mui/icons-material/Cloud';
 import CampaignIcon from '@mui/icons-material/Campaign';
+import LoginIcon from '@mui/icons-material/Login';
 import React from "react";
 import { Links, NavLinks } from "../../constants";
 import MenuButton from "../Button/MenuButton";
@@ -26,6 +27,8 @@ const NavBar: React.FC = () => {
         return <CloudIcon />;
       case 'Alert':
         return <Badge color="error" badgeContent={alerts}> < CampaignIcon color="error" /></Badge>;
+      case 'Login':
+        return <LoginIcon />;
 
       default:
         return <></>;
