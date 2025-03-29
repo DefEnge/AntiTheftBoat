@@ -49,7 +49,7 @@ client.username_pw_set(APPLICATION_ID, MQTT_APIKEY)
 client.connect(MQTT_BROKER, 1883, 60)
 
 
-def send_register(device: str, name: str, surname: str, plate: str):
+def send_register(device: str, username: str, plate: str):
     deveui_b = os.urandom(8)
     deveui_x = binascii.hexlify(deveui_b).decode("utf-8").upper()
 
@@ -194,8 +194,7 @@ def send_register(device: str, name: str, surname: str, plate: str):
                 "message": "Device added successfully",
                 "device": {
                     "deviceId": device,
-                    "nome": name,
-                    "cognome": surname,
+                    "username": username,
                     "targa": plate,
                 },
                 "status": 200,
@@ -288,14 +287,15 @@ class Device(db.Model):
         db.Integer, primary_key=True, autoincrement=True
     )  # Primary key with auto-increment
     device_id = db.Column(db.String(100), nullable=False, unique=True)
-    nome = db.Column(db.String(100), nullable=False)
-    cognome = db.Column(db.String(100), nullable=False)
     targa = db.Column(db.String(20), nullable=False)
 
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
+    email = db.Column(db.String(100), nullable=False)
+    nome = db.Column(db.String(100), nullable=False)
+    cognome = db.Column(db.String(100), nullable=False)
     password_hash = db.Column(db.String(128), nullable=False)
     role = db.Column(db.String(20), nullable=False)
 
@@ -311,19 +311,16 @@ def register():
         return jsonify({"error": "No json received"}), 400
 
     device_id = input_json.get("deviceId")
-    name = input_json.get("nome")
-    surname = input_json.get("cognome")
+    username = input_json.get("username")
     plate = input_json.get("targa")
 
-    if not all([device_id, name, surname, plate]):
+    if not all([device_id, username, plate]):
         return jsonify({"error": "Missing required fields"}), 400
 
-    respons = send_register(device_id, name, surname, plate)
+    respons = send_register(device_id, username, plate)
     if respons != "err":
         new_device = Device(
             device_id=input_json["deviceId"],
-            nome=input_json["nome"],
-            cognome=input_json["cognome"],
             targa=input_json["targa"],
         )
 
@@ -369,11 +366,29 @@ def list_devices():
     # return get_devices()
 
 
+@app.route("/pair", methods=["POST"])
+def pair_devices():
+    data = request.get_json()
+    username = data.get("username")
+    device = data.get("device")
+
+    user = User.query.filter_by(username=username).first()
+    deviceid = Device.query.filter_by(device_id=device).first()
+
+    if not user or not deviceid:
+        return jsonify({"error": "Invalid credentials"}), 401
+
+    return jsonify({"paired_device": device, "user": username})
+
+
 @app.route("/signin", methods=["POST"])
 def signin():
     data = request.get_json()
     username = data.get("username")
     password = data.get("password")
+    email = data.get("email")
+    name = data.get("nome")
+    surname = data.get("cognome")
     role = data.get("role", "user")
 
     if not username or not password:
@@ -383,7 +398,14 @@ def signin():
         return jsonify({"error": "User already exists"}), 400
 
     hashed_password = bcrypt.generate_password_hash(password).decode("utf-8")
-    new_user = User(username=username, password_hash=hashed_password, role=role)
+    new_user = User(
+        username=username,
+        email=email,
+        nome=name,
+        cognome=surname,
+        password_hash=hashed_password,
+        role=role,
+    )
 
     db.session.add(new_user)
     db.session.commit()
