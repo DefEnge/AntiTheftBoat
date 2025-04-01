@@ -300,6 +300,12 @@ class User(db.Model):
     role = db.Column(db.String(20), nullable=False)
 
 
+class UserTokens(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    token = db.Column(db.String(128), nullable=False)
+
+
 with app.app_context():
     db.create_all()
 
@@ -418,14 +424,19 @@ def login():
     data = request.get_json()
     username = data.get("username")
     password = data.get("password")
+    token_b = os.urandom(128)
+    token_x = binascii.hexlify(token_b).decode("utf-8").upper()
 
     user = User.query.filter_by(username=username).first()
 
     if not user or not bcrypt.check_password_hash(user.password_hash, password):
         return jsonify({"error": "Invalid credentials"}), 401
+    NewUserToken = UserTokens(username=username, token=token_x)
 
-    token = "test log succes"
-    return jsonify({"access_token": token, "role": user.role})
+    db.session.add(NewUserToken)
+    db.session.commit()
+
+    return jsonify({"token": token_x})
 
 
 # Run the Flask app
