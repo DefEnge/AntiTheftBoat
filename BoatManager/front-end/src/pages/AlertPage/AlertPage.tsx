@@ -9,7 +9,6 @@ const AlertPage: React.FC = () => {
 
 			<ContentWrapper>
 				<NavBar />
-
 			</ContentWrapper>
 		</>
 	)

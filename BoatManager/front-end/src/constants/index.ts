@@ -1,14 +1,18 @@
 export const NavLinks: string[] = [
-	'Management',
-	'Devicelist',
-	'Alert',
-	'Weather'
+    'Management',
+    'Devicelist',
+    'Alert',
+    'Weather'
 ]
 
 export const Links: string[] = [
-	'/',
-	'devices',
-	'alert',
-	'weather'
+    '/',
+    'devices',
+    'management',
+    'alert',
+    'signin',
+    'unauthorized'
+
+
 ]
 

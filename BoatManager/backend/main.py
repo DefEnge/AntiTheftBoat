@@ -269,6 +269,7 @@ def get_devices():
 
 app = Flask(__name__)
 
+
 CORS(app)
 
 
@@ -390,22 +391,22 @@ def pair_devices():
 @app.route("/signin", methods=["POST"])
 def signin():
     data = request.get_json()
-    username = data.get("username")
+    username_data = data.get("username")
     password = data.get("password")
     email = data.get("email")
-    name = data.get("nome")
-    surname = data.get("cognome")
+    name = data.get("name")
+    surname = data.get("surname")
     role = data.get("role", "user")
 
-    if not username or not password:
+    if not username_data or not password or not email or not name or not surname:
         return jsonify({"error": "Username and password required"}), 400
 
-    if User.query.filter_by(username=username).first():
+    if User.query.filter_by(username=username_data).first():
         return jsonify({"error": "User already exists"}), 400
 
     hashed_password = bcrypt.generate_password_hash(password).decode("utf-8")
     new_user = User(
-        username=username,
+        username=username_data,
         email=email,
         nome=name,
         cognome=surname,
@@ -430,13 +431,16 @@ def login():
     user = User.query.filter_by(username=username).first()
 
     if not user or not bcrypt.check_password_hash(user.password_hash, password):
-        return jsonify({"error": "Invalid credentials"}), 401
+        return jsonify({"error": "Invalid credentials"}), 404
     NewUserToken = UserTokens(username=username, token=token_x)
 
     db.session.add(NewUserToken)
     db.session.commit()
 
-    return jsonify({"token": token_x})
+    response = jsonify({"status": "success", "role": user.role})
+    response.set_cookie("token", NewUserToken.token, httponly=True, samesite="Lax")
+
+    return response
 
 
 # Run the Flask app
