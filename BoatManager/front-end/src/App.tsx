@@ -10,11 +10,9 @@ const App: React.FC = () => {
         <BrowserRouter>
             <Routes>
                 <Route path={Links[0]} element={<LoginPage />}></Route >
-                <Route path={Links[1]} element={<DeviceListPage />}></Route >
-                <Route path={Links[2]} element={<ManagementPage />}></Route >
-                <Route path={Links[3]} element={<AlertPage />}></Route >
-                <Route path={Links[4]} element={<SignIn />}></Route >
-                <Route path={Links[5]} element={<Unauthorized />}></Route >
+                <Route path={Links[1]} element={<ManagementPage />}></Route >
+                <Route path={Links[2]} element={<AlertPage />}></Route >
+                <Route path={Links[3]} element={<SignIn />}></Route >
             </Routes>
         </BrowserRouter >
     )

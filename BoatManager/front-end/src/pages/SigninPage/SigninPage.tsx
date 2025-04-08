@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router";
 import axios from "axios";
 import { TextField, Button, Container, Typography, Box } from "@mui/material";
 
@@ -11,6 +12,7 @@ const SignIn: React.FC = () => {
         surname: "",
     });
 
+    const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
 
@@ -24,7 +26,8 @@ const SignIn: React.FC = () => {
 
     const handleSubmit = async (event: React.FormEvent) => {
         event.preventDefault();
-        setLoading(true);
+        setLoading(true)
+
         setError(""); // Reset any previous errors
 
         try {
@@ -48,6 +51,7 @@ const SignIn: React.FC = () => {
             setError("Something went wrong. Please try again.");
         } finally {
             setLoading(false); // End loading state
+            navigate("/");
         }
     };
 

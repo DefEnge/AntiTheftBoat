@@ -4,64 +4,68 @@ import PeopleIcon from '@mui/icons-material/People';
 import CloudIcon from '@mui/icons-material/Cloud';
 import CampaignIcon from '@mui/icons-material/Campaign';
 import LoginIcon from '@mui/icons-material/Login';
+import LogoutIcon from '@mui/icons-material/Logout';
 import React from "react";
-import { Links, NavLinks } from "../../constants";
+import { Links, getNavLinks } from "../../constants";
 import MenuButton from "../Button/MenuButton";
 import { MenuButtonWrapper } from "../Wrapper/style";
+import { Logout } from "@mui/icons-material";
 
 const NavBar: React.FC = () => {
 
-  const [open, setOpen] = React.useState(false);
-  const [alerts, setAlerts] = React.useState<number>(1);
+    const [open, setOpen] = React.useState(false);
+    const [alerts, setAlerts] = React.useState<number>(1);
+    const isLoggedIn = !!localStorage.getItem("AuthToken");
+    const NavLinks = getNavLinks(!!isLoggedIn);
 
-  const toggleDrawer = (newOpen: boolean) => () => {
-    setOpen(newOpen);
-  };
-  const iconSelector: React.ElementType = (text: string) => {
-    switch (text) {
-      case 'Management':
-        return <ManageAccountsIcon />;
-      case 'Devicelist':
-        return <PeopleIcon />;
-      case 'Weather':
-        return <CloudIcon />;
-      case 'Alert':
-        return <Badge color="error" badgeContent={alerts}> < CampaignIcon color="error" /></Badge>;
-      case 'Login':
-        return <LoginIcon />;
+    const toggleDrawer = (newOpen: boolean) => () => {
+        setOpen(newOpen);
+    };
+    const iconSelector: React.ElementType = (text: string) => {
+        switch (text) {
+            case 'Management':
+                return <ManageAccountsIcon />;
+            case 'Devicelist':
+                return <PeopleIcon />;
+            case 'Alert': //NOTE: VIM DA ERRORE QUA BOH 
+                return <Badge color={alerts >= 1 ? "error" : "black"} badgeContent={alerts} > < CampaignIcon color={alerts >= 1 ? "error" : "black"} /></Badge >;
+            case 'Login':
+                return <LoginIcon />;
 
-      default:
-        return <></>;
-    }
-  };
+            case 'Logout':
+                return <Logout />;
+            default:
+                return <></>;
+        }
+    };
 
-  const DrawerList = (
-    <Box sx={{ width: 250, display: "block" }} role="presentation" onClick={toggleDrawer(false)} >
-      <List>
-        {NavLinks.map((text, index) => (
-          <>
-            <ListItem key={index} >
-              <ListItemButton component="a" href={Links[index]} >
-                <ListItemIcon>
-                  {iconSelector(text)}
-                </ListItemIcon>
-                <ListItemText primary={text} />
-              </ListItemButton>
-            </ListItem>
-            <Divider component="li" />
-          </>
-        ))}
-      </List>
-    </Box>
-  );
+    const DrawerList = (
+        <Box sx={{ width: 250, display: "block" }} role="presentation" onClick={toggleDrawer(false)} >
+            <List>
+                {NavLinks.map((text, index) => (
+                    <>
+                        <ListItem key={index} >
+                            <ListItemButton component="a" href={Links[index]} >
+                                <ListItemIcon>
+                                    {iconSelector(text)}
+                                </ListItemIcon>
+                                <ListItemText primary={text} />
+                            </ListItemButton>
+                        </ListItem>
+                        <Divider component="li" />
+                    </>
+                ))}
+            </List>
+        </Box>
+    );
 
-  return (
-    <MenuButtonWrapper>
-      <MenuButton onClick={toggleDrawer(true)} ></MenuButton>
-      <Drawer open={open} onClose={toggleDrawer(false)}>{DrawerList}</Drawer>
-    </MenuButtonWrapper>
+    return (
+        <MenuButtonWrapper>
+            <MenuButton onClick={toggleDrawer(true)} ></MenuButton>
+            <Drawer open={open} onClose={toggleDrawer(false)}>{DrawerList}</Drawer>
+        </MenuButtonWrapper>
 
-  );
+    );
 }
 
 

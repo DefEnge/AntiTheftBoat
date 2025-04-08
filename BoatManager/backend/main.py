@@ -1,5 +1,6 @@
+import json
 import os
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, make_response
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from flask_bcrypt import Bcrypt
@@ -7,7 +8,9 @@ import requests
 import threading
 import paho.mqtt.client as mqtt
 import binascii
+import base64
 import time
+import datetime
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -26,6 +29,17 @@ MQTT_PORT = os.getenv("MQTT_PORT")
 APPLICATION_ID = os.getenv("APPLICATION_ID")
 
 
+def filter_message(msg):
+    return {
+        "device_id": msg["end_device_ids"]["device_id"],
+        "timestamp": msg["received_at"],
+        "payload_raw": msg["uplink_message"]["frm_payload"],
+        "payload_decoded": base64.b64decode(
+            msg["uplink_message"]["frm_payload"]
+        ).decode("utf-8"),
+    }
+
+
 def on_connect(client, userdata, flags, rc, prop):
     print("connected with result code " + str(rc))
     client.subscribe("#")
@@ -33,8 +47,29 @@ def on_connect(client, userdata, flags, rc, prop):
 
 def on_message(client, userdata, msg):
     topic = str(msg.topic)
-    message = str(msg.payload.decode("utf-8"))
-    print(topic + " " + message)
+    message_str = msg.payload.decode("utf-8")
+
+    try:
+        message_json = json.loads(message_str)
+        filtered = filter_message(message_json)
+        print(json.dumps(filtered, indent=2))  # Stampi solo i campi utili
+
+        payload_text = filtered["payload_decoded"]
+        device_id = filtered["device_id"]
+
+        if "Allerta" in payload_text:
+            with app.app_context():
+                device = Device.query.filter_by(device_id=device_id).first()
+                if device and not device.alarm:
+                    print(f"Setting alarm ON for device {device_id}")
+                    device.alarm = True
+                    db.session.commit()
+
+                    # t = threading.Thread(target=monitor_device, args=(device_id,))
+                    # t.start()
+
+    except Exception as e:
+        print("Errore nel parsing o nel filtro del messaggio:", e)
 
 
 client = mqtt.Client(
@@ -270,7 +305,12 @@ def get_devices():
 app = Flask(__name__)
 
 
-CORS(app)
+CORS(
+    app,
+    supports_credentials=True,
+    origins=["http://localhost:5173"],
+    allow_credentials=True,
+)
 
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
@@ -289,6 +329,9 @@ class Device(db.Model):
     )  # Primary key with auto-increment
     device_id = db.Column(db.String(100), nullable=False, unique=True)
     targa = db.Column(db.String(20), nullable=False)
+    username = db.Column(db.String(80), unique=False, nullable=False)
+    alarm = db.Column(db.Boolean, default=False)
+    status = db.Column(db.Integer, default=0)
 
 
 class User(db.Model):
@@ -311,6 +354,24 @@ with app.app_context():
     db.create_all()
 
 
+def monitor_device(device_id):
+    print(f"Started monitoring device: {device_id}")
+    # inserire client mqtt far creare i thread dentro on message
+    # FIXME: DEVI AGGIUNGERE IL CLIENT MQTT IN ASCOLTO QUI
+    while True:
+        # Esempio: semplice attesa simulata
+        time.sleep(10)
+
+        # Condizione ipotetica per spegnere l'allarme (es. ricezione di "FineAllerta")
+        with app.app_context():
+            device = Device.query.filter_by(device_id=device_id).first()
+            if device and check_condition_to_reset(device_id):
+                print(f"Resetting alarm for {device_id}")
+                device.alarm = False
+                db.session.commit()
+                break
+
+
 @app.route("/register", methods=["POST"])
 def register():
     input_json = request.get_json(force=True)
@@ -329,6 +390,7 @@ def register():
         new_device = Device(
             device_id=input_json["deviceId"],
             targa=input_json["targa"],
+            username=username,
         )
 
         db.session.add(new_device)
@@ -355,22 +417,84 @@ def delete(deviceid):
         return jsonify({"error": str(e)}), 500
 
 
-@app.route("/devices")
+@app.route("/devices", methods=["POST"])
 def list_devices():
-    devices = Device.query.all()
+    input_json = request.get_json(force=True)
+    if not input_json:
+        return jsonify({"error": "No json received"}), 400
+
+    user_token = input_json.get("AuthToken")
+
+    username_bytoken = UserTokens.query.filter_by(token=user_token).first()
+
+    user = User.query.filter_by(username=username_bytoken.username).first()
+
+    if user.role == "admin":
+        devices = Device.query.all()
+        return jsonify(
+            [
+                {
+                    "device": {
+                        "deviceId": d.device_id,
+                        "username": d.username,
+                        "targa": d.targa,
+                        "allerta": d.alarm,
+                        "status": d.status,
+                    }
+                }
+                for d in devices
+            ]
+        )
+
+    if not username_bytoken:
+        return jsonify({"error": "no valid token"})
+
+    devices = Device.query.filter_by(username=username_bytoken.username)
+
     return jsonify(
         [
             {
-                "deviceId": d.device_id,
-                "nome": d.nome,
-                "cognome": d.cognome,
-                "targa": d.targa,
+                "device": {
+                    "deviceId": d.device_id,
+                    "username": d.username,
+                    "targa": d.targa,
+                    "allerta": d.alarm,
+                    "status": d.status,
+                }
             }
             for d in devices
         ]
     )
     # usare per prendere da ttn;
     # return get_devices()
+
+
+@app.route("/switchst", methods=["POST"])
+def change_status():
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "No json received"}), 400
+
+    user_token = data.get("AuthToken")
+    deviceid = data.get("deviceId")
+    change_st = data.get("payload")
+
+    username_bytoken = UserTokens.query.filter_by(token=user_token).first()
+
+    if not username_bytoken:
+        return jsonify({"error": "no valid token"}, 400)
+
+    # FIXME:solo i proprietari possono cambiare lo stato ad off.
+    deviceid = Device.query.filter(
+        username=username_bytoken.username, deviceid=deviceid
+    ).first()
+
+    if not username_bytoken.username or not deviceid:
+        return jsonify({"error": "Invalid device or user"}), 401
+
+    # FIXME:CONTINUA LA FUNZIONE DI SWITCH MANDARE DOWNLINK
+
+    return 200
 
 
 @app.route("/pair", methods=["POST"])
@@ -420,25 +544,52 @@ def signin():
     return jsonify({"message": "User registered successfully"}), 201
 
 
-@app.route("/login", methods=["POST"])
+@app.route("/login", methods=["POST", "OPTIONS"])
 def login():
+    if request.method == "OPTIONS":
+        response = make_response()
+        response.headers.add("Access-Control-Allow-Origin", "http://localhost:5173")
+        response.headers.add(
+            "Access-Control-Allow-Headers", "Content-Type,Authorization"
+        )
+        response.headers.add(
+            "Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS"
+        )
+        response.headers.add("Access-Control-Allow-Credentials", "true")
+        return response
     data = request.get_json()
     username = data.get("username")
     password = data.get("password")
     token_b = os.urandom(128)
     token_x = binascii.hexlify(token_b).decode("utf-8").upper()
+    expire_date = datetime.datetime.now()
+    expire_date = expire_date + datetime.timedelta(days=90)
 
     user = User.query.filter_by(username=username).first()
 
     if not user or not bcrypt.check_password_hash(user.password_hash, password):
         return jsonify({"error": "Invalid credentials"}), 404
-    NewUserToken = UserTokens(username=username, token=token_x)
+    check_token = UserTokens.query.filter_by(username=username).first()
+    if not check_token:
+        NewUserToken = UserTokens(username=username, token=token_x)
+        db.session.add(NewUserToken)
+        db.session.commit()
 
-    db.session.add(NewUserToken)
-    db.session.commit()
-
-    response = jsonify({"status": "success", "role": user.role})
-    response.set_cookie("token", NewUserToken.token, httponly=True, samesite="Lax")
+    response = jsonify(
+        {"status": "success", "auth_token": check_token.token, "role": user.role}
+    )
+    response.headers.add("Access-Control-Allow-Origin", "http://localhost:5173")
+    response.headers.add("Access-Control-Allow-Credentials", "true")
+    response.set_cookie(
+        "token",
+        check_token.token,
+        max_age=60 * 60 * 24 * 90,
+        samesite=None,
+        expires=expire_date,
+        secure=False,
+        httponly=True,
+        path="/",
+    )
 
     return response
 

@@ -1,5 +1,7 @@
 import React from "react";
 import axios from "axios";
+
+import { useEffect } from "react";
 import { useNavigate } from "react-router";
 import {
     TextField,
@@ -12,7 +14,7 @@ import {
 } from "@mui/material";
 import { useForm, SubmitHandler } from "react-hook-form";
 
-//axios.defaults.withCredentials = true;
+axios.defaults.withCredentials = true;
 
 interface LoginFormInputs {
     username: string;
@@ -23,6 +25,9 @@ const LoginPage: React.FC = () => {
 
     const navigate = useNavigate();
 
+    useEffect(() => {
+        localStorage.removeItem("AuthToken");
+    }, []);
     const {
         register,
         handleSubmit,
@@ -31,15 +36,11 @@ const LoginPage: React.FC = () => {
 
     const onSubmit: SubmitHandler<LoginFormInputs> = async (data) => {
         try {
-            const response = await axios.post("http://127.0.0.1:5000/login", data);
+            const response = await axios.post("http://127.0.0.1:5000/login", data, { withCredentials: true });
             console.log("Login successful", response.data);
-            if (response.data.role === "admin") {
-                navigate("/devicelist");
-            } else {
-                navigate("/"); // Altra pagina
-            }
+            localStorage.setItem('AuthToken', response.data.auth_token),
+                navigate("/management"); // Altra pagina
 
-            // Handle successful login (e.g., save token, redirect user)
         } catch (error) {
             console.error("Login error", error);
             alert("Login failed. Please try again.");
