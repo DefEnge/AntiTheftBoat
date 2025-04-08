@@ -1,105 +1,394 @@
-import React, { useState } from "react";
-import { Box, Button, TextField, Alert, colors, Typography } from '@mui/material';
+import React, { useState, useEffect } from "react";
+import { Box, Button, TextField, Alert, Typography, Card, CardContent, CardActions, Grid, Chip, IconButton } from '@mui/material';
+import AddIcon from '@mui/icons-material/Add';
+import DeleteIcon from '@mui/icons-material/Delete';
+import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
+import NotificationsOffIcon from '@mui/icons-material/NotificationsOff';
 import axios from "axios";
 import { NavBar } from "../../components";
 import { ContentWrapper, FormWrapper } from "../../components/Wrapper/style";
 
+interface DeviceData {
+    deviceId: string;
+    username: string;
+    targa: string;
+    status?: number; // Added status field
+}
+
+interface DeviceResponse {
+    device: DeviceData;
+    allerta: boolean;
+    status?: string;
+}
+
 const ManagementPage: React.FC = () => {
-  const [deviceId, setDeviceId] = useState<string>("");
-  const [cognome, setCognome] = useState<string>("");
-  const [nome, setNome] = useState<string>("");
-  const [targa, setTarga] = useState<string>("");
-  const [devEui, setDevEui] = useState<string>("");
-  const [appKey, setAppKey] = useState<string>("");
-  const [message, setMessage] = useState<string>("");
+    const [devices, setDevices] = useState<DeviceResponse[]>([]);
+    const [showForm, setShowForm] = useState<boolean>(false);
+    const [deviceId, setDeviceId] = useState<string>("");
+    const [username, setUsername] = useState<string>("");
+    const [targa, setTarga] = useState<string>("");
+    const [devEui, setDevEui] = useState<string>("");
+    const [appKey, setAppKey] = useState<string>("");
+    const [message, setMessage] = useState<string>("");
+    const [loading, setLoading] = useState<boolean>(true);
+    const [error, setError] = useState<string>("");
 
-  const handleAddDevice = async () => {
-    try {
-      setMessage("");
+    // Fetch devices on component mount
+    useEffect(() => {
+        fetchDevices();
+    }, []);
 
-      const requestData = {
-        deviceId,
-        cognome,
-        nome,
-        targa
-      };
+    const fetchDevices = async () => {
+        try {
+            setLoading(true);
+            console.log()
+            const response = await axios.post("http://127.0.0.1:5000/devices", { "AuthToken": localStorage.getItem("AuthToken") });
 
-      const response = await axios.post("http://127.0.0.1:5000/register", requestData, {
-        headers: { "Content-Type": "application/json" }
-      });
+            const devicesWithStatus = response.data.map((device: DeviceResponse) => ({
+                ...device,
+                device: {
+                    ...device.device,
+                    status: device.status,
+                    allerta: device.allerta,
+                },
+            }));
 
-      console.log(response.data);
+            setDevices(devicesWithStatus);
+            setError("");
+        } catch (err) {
+            console.error("Error fetching devices", err);
+            setError("Impossibile caricare i dispositivi. Riprova più tardi.");
+        } finally {
+            setLoading(false);
+        }
+    };
 
-      // Update state with the response
-      setDeviceId(response.data.respons.DeviceId);
-      setDevEui(response.data.respons.DevEui);
-      setAppKey(response.data.respons.AppKey);
-      setMessage("Device added successfully!");
-    } catch (error) {
-      console.error("Error adding device", error);
-      setMessage("Error adding device.");
-    }
-    setDeviceId("");
-    setCognome("");
-    setNome("");
-    setTarga("");
-  };
+    const handleAddDevice = async () => {
+        try {
+            setMessage("");
 
-  return (
-    <>
-      <ContentWrapper>
-        <NavBar />
+            const requestData = {
+                deviceId,
+                username,
+                targa,
+            };
 
-        <FormWrapper>
-          <Typography variant="h3" gutterBottom sx={{ color: "black", fontFamily: "sans-serif" }}>Register device</Typography>
-          <Box component="form" sx={{
-            display: "flex", flexWrap: "wrap", flexDirection: "column", justifyContent: "center",
-            alignItems: "center",
-          }}>
+            const response = await axios.post("http://127.0.0.1:5000/register", requestData, {
+                headers: { "Content-Type": "application/json" }
+            });
 
-            <TextField
-              label="Device ID"
-              placeholder="test-1234"
-              value={deviceId}
-              onChange={(e) => setDeviceId(e.target.value)}
-              sx={{ paddingBottom: "10%" }}
-            />
+            console.log(response.data);
 
-            <TextField
-              label="Nome"
-              placeholder="Mario"
-              value={nome}
-              onChange={(e) => setNome(e.target.value)}
-              sx={{ paddingBottom: "10%" }}
-            />
+            // Update state with the response
+            setDevEui(response.data.respons.DevEui);
+            setAppKey(response.data.respons.AppKey);
+            setMessage("Device added successfully!");
 
-            <TextField
-              label="Cognome"
-              placeholder="Rossi"
-              value={cognome}
-              onChange={(e) => setCognome(e.target.value)}
-              sx={{ paddingBottom: "10%" }}
-            />
+            // Reset form and fetch updated devices list
+            resetForm();
+            fetchDevices();
+        } catch (error) {
+            console.error("Error adding device", error);
+            setMessage("Error adding device.");
+        }
+    };
 
-            <TextField
-              label="Targa"
-              placeholder="LV00000"
-              value={targa}
-              onChange={(e) => setTarga(e.target.value)} sx={{ paddingBottom: "10%" }} />
-          </Box>
-          <Box component="div" sx={{ display: " flex", flexWrap: "wrap", flexDirection: "row", justifyContent: "space-between", }}>
-            <Button variant="contained" sx={{ margin: "1rem" }} onClick={handleAddDevice} >Add device</Button>
-          </Box>
-        </FormWrapper>
-        <Box component="div" sx={{ position: "relative", display: " flex", flexWrap: "wrap", flexDirection: "inherit", justifyContent: "space-between" }}>
-          {message && <Alert sx={{ margin: "5%" }}>{message}</Alert>}
-          {devEui && <Alert sx={{ margin: "5%" }}>{"DevEui: " + devEui}</Alert>}
-          {appKey && <Alert sx={{ margin: "5%" }}>{"Appkey: " + appKey}</Alert>}
-        </Box>
-      </ContentWrapper>
+    const handleDeleteDevice = async (deviceId: string) => {
+        try {
+            setMessage("");
 
-    </>
-  );
+            // Send delete request to the server
+            await axios.get(`http://127.0.0.1:5000/delete/${deviceId}`);
+
+            // Update the UI by removing the deleted device
+            setDevices(devices.filter(item => item.device.deviceId !== deviceId));
+            setMessage(`Device ${deviceId} deleted successfully!`);
+        } catch (error) {
+            console.error("Error deleting device", error);
+            setMessage(`Error deleting device ${deviceId}.`);
+        }
+    };
+
+    // New function to handle alarm actions
+    const handleAlarmAction = async (deviceId: string, payload: string) => {
+        try {
+            setMessage("");
+
+            // Prepare the request data
+            const requestData = {
+                deviceId,
+                AuthToken: localStorage.getItem("AuthToken"),
+                payload
+
+            };
+
+            console.log(requestData);
+            // Send the request to the server
+            await axios.post("http://127.0.0.1:5000/switchst", requestData, {
+                headers: { "Content-Type": "application/json" }
+            });
+
+            // Show success message
+            setMessage(`Alarm ${payload === "on" ? "activated" : "deactivated"} for device ${deviceId}`);
+
+            const updatedDevices = devices.map(item => {
+                if (item.device.deviceId === deviceId) {
+                    return {
+                        ...item,
+                        device: {
+                            ...item.device,
+                            status: ayload === "on" ? "active" : "inactive"
+                        }
+                    };
+                }
+                return item;
+            });
+
+            setDevices(updatedDevices);
+        } catch (error) {
+            console.error(`Error ${payload === "on" ? "activating" : "deactivating"} alarm`, error);
+            setMessage(`Error ${payload === "on" ? "activating" : "deactivating"} alarm for device ${deviceId}.`);
+        }
+    };
+
+    const resetForm = () => {
+        setDeviceId("");
+        setUsername("");
+        setTarga("");
+        setShowForm(false);
+    };
+
+    const handleOpenForm = () => {
+        setShowForm(true);
+    };
+
+    const getStatusColor = (status: number = 0) => {
+        switch (status) {
+            case 1:
+                return 'success';
+            case 0:
+                return 'error';
+            default:
+                return 'default';
+        }
+    };
+
+    return (
+        <>
+            <ContentWrapper>
+                <NavBar />
+
+                <Typography variant="h3" gutterBottom sx={{
+                    color: "white",
+                    fontFamily: "sans-serif",
+                    margin: "2rem"
+                }}>
+                    Gestione Dispositivi
+                </Typography>
+
+                {error && (
+                    <Alert severity="error" sx={{ margin: "1rem 2rem" }}>{error}</Alert>
+                )}
+
+                {loading ? (
+                    <Typography variant="body1" sx={{ margin: "2rem", color: "white" }}>
+                        Caricamento dispositivi...
+                    </Typography>
+                ) : (
+                    <Grid container spacing={3} sx={{ padding: "1rem 2rem" }}>
+                        {/* Device cards */}
+                        {devices.map((deviceItem) => (
+                            <Grid item xs={12} sm={6} md={4} key={deviceItem.device.deviceId}>
+                                <Card sx={{
+                                    height: '100%',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                                    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.3)'
+                                }}>
+                                    <CardContent>
+                                        <Box sx={{
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            alignItems: 'flex-start'
+                                        }}>
+                                            <Typography variant="h5" component="div" gutterBottom>
+                                                {deviceItem.device.deviceId}
+                                            </Typography>
+                                            <Box>
+                                                <Chip
+                                                    label={deviceItem.device.status ? "active" : "disabled"}
+                                                    color={getStatusColor(deviceItem.device.status) as any}
+                                                    size="small"
+                                                    sx={{ mr: 1 }}
+                                                />
+                                                <IconButton
+                                                    aria-label="delete"
+                                                    color="error"
+                                                    onClick={() => handleDeleteDevice(deviceItem.device.deviceId)}
+                                                    sx={{ p: 0.5 }}
+                                                >
+                                                    <DeleteIcon />
+                                                </IconButton>
+                                            </Box>
+                                        </Box>
+                                        <Typography variant="body1" color="text.secondary">
+                                            Utente: {deviceItem.device.username}
+                                        </Typography>
+                                        <Typography variant="body1" color="text.secondary">
+                                            Targa: {deviceItem.device.targa}
+                                        </Typography>
+                                    </CardContent>
+                                    <CardActions sx={{ justifyContent: 'space-between', padding: '16px' }}>
+                                        <Button size="small" variant="contained" color="primary">Dettagli</Button>
+                                        <Box>
+                                            <Button  //FIXME:do not show allarm off
+                                                size="small"
+                                                variant="contained"
+                                                color="success"
+                                                startIcon={<NotificationsActiveIcon />}
+                                                onClick={() => handleAlarmAction(deviceItem.device.deviceId, "on")}
+                                                sx={{ mr: 1 }}
+                                            >
+                                                Allarme ON
+                                            </Button>
+                                            <Button
+                                                size="small"
+                                                variant="contained"
+                                                color="error"
+                                                startIcon={<NotificationsOffIcon />}
+                                                onClick={() => handleAlarmAction(deviceItem.device.deviceId, "off")}
+                                            >
+                                                Allarme OFF
+                                            </Button>
+                                        </Box>
+                                    </CardActions>
+                                </Card>
+                            </Grid>
+                        ))}
+
+                        {/* Add new device card */}
+                        <Grid item xs={12} sm={6} md={4}>
+                            <Card
+                                sx={{
+                                    height: '100%',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    justifyContent: 'center',
+                                    alignItems: 'center',
+                                    cursor: 'pointer',
+                                    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+                                    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.3)',
+                                    transition: 'all 0.3s ease',
+                                    '&:hover': {
+                                        backgroundColor: 'rgba(255, 255, 255, 0.25)',
+                                        transform: 'translateY(-5px)'
+                                    }
+                                }}
+                                onClick={handleOpenForm}
+                            >
+                                <CardContent sx={{ textAlign: 'center' }}>
+                                    <AddIcon sx={{ fontSize: 60, color: '#ffffff', mb: 2 }} />
+                                    <Typography variant="h6" sx={{ color: '#ffffff' }}>
+                                        Aggiungi Nuovo Dispositivo
+                                    </Typography>
+                                </CardContent>
+                            </Card>
+                        </Grid>
+                    </Grid>
+                )}
+
+                {/* Registration form */}
+                {showForm && (
+                    <FormWrapper sx={{
+                        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                        borderRadius: '8px',
+                        padding: '2rem',
+                        maxWidth: '500px',
+                        margin: '2rem auto'
+                    }}>
+                        <Typography variant="h4" gutterBottom sx={{
+                            color: "#333",
+                            fontFamily: "sans-serif",
+                            marginBottom: "1.5rem"
+                        }}>
+                            Registra nuovo dispositivo
+                        </Typography>
+                        <Box component="form" sx={{
+                            display: "flex",
+                            flexWrap: "wrap",
+                            flexDirection: "column",
+                            justifyContent: "center",
+                            alignItems: "center",
+                            width: "100%"
+                        }}>
+                            <TextField
+                                label="Device ID"
+                                placeholder="test-1234"
+                                value={deviceId}
+                                onChange={(e) => setDeviceId(e.target.value)}
+                                sx={{ marginBottom: "1.5rem", width: "100%" }}
+                                fullWidth
+                            />
+                            <TextField
+                                label="Username"
+                                placeholder="Utente"
+                                value={username}
+                                onChange={(e) => setUsername(e.target.value)}
+                                sx={{ marginBottom: "1.5rem", width: "100%" }}
+                                fullWidth
+                            />
+                            <TextField
+                                label="Targa"
+                                placeholder="LV00000"
+                                value={targa}
+                                onChange={(e) => setTarga(e.target.value)}
+                                sx={{ marginBottom: "1.5rem", width: "100%" }}
+                                fullWidth
+                            />
+
+                            {/* Buttons container - adjusted to be contained within form */}
+                            <Box component="div" sx={{
+                                display: "flex",
+                                flexDirection: "row",
+                                justifyContent: "space-between",
+                                width: "100%",
+                                mt: 2,
+                                px: 0  // Remove horizontal padding
+                            }}>
+                                <Button
+                                    variant="outlined"
+                                    onClick={resetForm}
+                                    sx={{ flex: 1, mr: 1 }}
+                                >
+                                    Annulla
+                                </Button>
+                                <Button
+                                    variant="contained"
+                                    onClick={handleAddDevice}
+                                    sx={{ flex: 1, ml: 1 }}
+                                >
+                                    Aggiungi
+                                </Button>
+                            </Box>
+                        </Box>
+                    </FormWrapper>
+                )}
+
+                {/* Messages and confirmation */}
+                <Box component="div" sx={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "1rem",
+                    margin: "1rem 2rem"
+                }}>
+                    {message && <Alert severity="success">{message}</Alert>}
+                    {devEui && <Alert severity="info">{"DevEui: " + devEui}</Alert>}
+                    {appKey && <Alert severity="info">{"AppKey: " + appKey}</Alert>}
+                </Box>
+            </ContentWrapper>
+        </>
+    );
 };
 
 export default ManagementPage;
