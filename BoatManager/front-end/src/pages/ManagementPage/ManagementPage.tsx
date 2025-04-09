@@ -137,7 +137,7 @@ const ManagementPage: React.FC = () => {
                         ...item,
                         device: {
                             ...item.device,
-                            status: ayload === "on" ? "active" : "inactive"
+                            status: payload === "on" ? "active" : "inactive"
                         }
                     };
                 }

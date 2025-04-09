@@ -38,8 +38,8 @@ const LoginPage: React.FC = () => {
         try {
             const response = await axios.post("http://127.0.0.1:5000/login", data, { withCredentials: true });
             console.log("Login successful", response.data);
-            localStorage.setItem('AuthToken', response.data.auth_token),
-                navigate("/management"); // Altra pagina
+            localStorage.setItem('AuthToken', response.data.auth_token);
+            navigate("/management"); // Altra pagina
 
         } catch (error) {
             console.error("Login error", error);
