@@ -51,22 +51,32 @@ def on_message(client, userdata, msg):
 
     try:
         message_json = json.loads(message_str)
+        # FIXME: REMEMBER THERE I A PROBLEM WITH THE FILTER.
         filtered = filter_message(message_json)
         print(json.dumps(filtered, indent=2))  # Stampi solo i campi utili
 
         payload_text = filtered["payload_decoded"]
         device_id = filtered["device_id"]
+        timestamp = filter["timestamp"]
+        direzione, flusso = payload_text.split(";")
 
-        if "Allerta" in payload_text:
+        if "Tutto Ok" not in payload_text or "Spento" not in payload_text:
             with app.app_context():
                 device = Device.query.filter_by(device_id=device_id).first()
                 if device and not device.alarm:
                     print(f"Setting alarm ON for device {device_id}")
                     device.alarm = True
-                    db.session.commit()
 
-                    # t = threading.Thread(target=monitor_device, args=(device_id,))
-                    # t.start()
+                if device.alarm:
+                    new_packet = AlarmMessage(
+                        device_id=device_id,
+                        time=timestamp,
+                        velocity=flusso,
+                        direction=direzione,
+                    )
+                    db.session.add(new_packet)
+
+                db.session.commit()
 
     except Exception as e:
         print("Errore nel parsing o nel filtro del messaggio:", e)
@@ -334,6 +344,16 @@ class Device(db.Model):
     status = db.Column(db.Integer, default=0)
 
 
+class AlarmMessage(db.Model):
+    id = db.Column(
+        db.Integer, primary_key=True, autoincrement=True
+    )  # Primary key with auto-increment
+    device_id = db.Column(db.String(100), nullable=False, unique=False)
+    time = db.Column(db.String(80), nullable=False)
+    velocity = db.Column(db.String(80), nullable=False)
+    direction = db.Column(db.String(80), nullable=False)
+
+
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
@@ -352,24 +372,6 @@ class UserTokens(db.Model):
 
 with app.app_context():
     db.create_all()
-
-
-def monitor_device(device_id):
-    print(f"Started monitoring device: {device_id}")
-    # inserire client mqtt far creare i thread dentro on message
-    # FIXME: DEVI AGGIUNGERE IL CLIENT MQTT IN ASCOLTO QUI
-    while True:
-        # Esempio: semplice attesa simulata
-        time.sleep(10)
-
-        # Condizione ipotetica per spegnere l'allarme (es. ricezione di "FineAllerta")
-        with app.app_context():
-            device = Device.query.filter_by(device_id=device_id).first()
-            if device and check_condition_to_reset(device_id):
-                print(f"Resetting alarm for {device_id}")
-                device.alarm = False
-                db.session.commit()
-                break
 
 
 @app.route("/register", methods=["POST"])
@@ -478,38 +480,67 @@ def change_status():
     user_token = data.get("AuthToken")
     deviceid = data.get("deviceId")
     change_st = data.get("payload")
+    print(change_st)
+    change_st = change_st.encode("utf-8")
+    b64_st = base64.b64encode(change_st)
 
+    # topic = "v3/anti-theft-boat0@ttn/devices/" + deviceid + "/down/replace"
+
+    # FIXME:REMEMBER TO CHANGE FROM ANGELO TO DEVICEID
+    topic = "v3/anti-theft-boat0@ttn/devices/" + "angelo" + "/down/replace"
+
+    payload = {
+        "downlinks": [
+            {"f_port": 15, "frm_payload": b64_st.decode(), "priority": "NORMAL"}
+        ]
+    }
+    print("-------------------")
+    print(payload)
     username_bytoken = UserTokens.query.filter_by(token=user_token).first()
 
     if not username_bytoken:
         return jsonify({"error": "no valid token"}, 400)
 
     # FIXME:solo i proprietari possono cambiare lo stato ad off.
-    deviceid = Device.query.filter(
-        username=username_bytoken.username, deviceid=deviceid
+    deviceid = Device.query.filter_by(
+        username=username_bytoken.username, device_id=deviceid
     ).first()
 
     if not username_bytoken.username or not deviceid:
         return jsonify({"error": "Invalid device or user"}), 401
 
-    # FIXME:CONTINUA LA FUNZIONE DI SWITCH MANDARE DOWNLINK
+    client_send = mqtt.Client(
+        mqtt.CallbackAPIVersion.VERSION2,
+        client_id="downlink",
+        userdata=None,
+        protocol=4,
+    )
+    client_send.on_connect = on_connect
+    client_send.username_pw_set(APPLICATION_ID, MQTT_APIKEY)
+    client_send.connect(MQTT_BROKER, 1883, 60)
 
-    return 200
+    client_send.loop_start()
+
+    client.publish(topic, json.dumps(payload))
+
+    return "200"
 
 
-@app.route("/pair", methods=["POST"])
-def pair_devices():
-    data = request.get_json()
-    username = data.get("username")
-    device = data.get("device")
-
-    user = User.query.filter_by(username=username).first()
-    deviceid = Device.query.filter_by(device_id=device).first()
-
-    if not user or not deviceid:
-        return jsonify({"error": "Invalid credentials"}), 401
-
-    return jsonify({"paired_device": device, "user": username})
+#
+# @app.route("/pair", methods=["POST"])
+# def pair_devices():
+#     data = request.get_json()
+#     username = data.get("username")
+#     device = data.get("device")
+#
+#     user = User.query.filter_by(username=username).first()
+#     deviceid = Device.query.filter_by(device_id=device).first()
+#
+#     if not user or not deviceid:
+#         return jsonify({"error": "Invalid credentials"}), 401
+#
+#     return jsonify({"paired_device": device, "user": username})
+#
 
 
 @app.route("/signin", methods=["POST"])
