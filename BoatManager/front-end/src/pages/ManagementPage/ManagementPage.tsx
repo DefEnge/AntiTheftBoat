@@ -12,13 +12,13 @@ interface DeviceData {
     deviceId: string;
     username: string;
     targa: string;
-    status?: number; // Added status field
+    status?: number;
 }
 
 interface DeviceResponse {
     device: DeviceData;
     allerta: boolean;
-    status?: string;
+    status?: number;
 }
 
 const ManagementPage: React.FC = () => {
@@ -33,27 +33,16 @@ const ManagementPage: React.FC = () => {
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string>("");
 
-    // Fetch devices on component mount
     useEffect(() => {
         fetchDevices();
     }, []);
-
     const fetchDevices = async () => {
         try {
             setLoading(true);
-            console.log()
             const response = await axios.post("http://127.0.0.1:5000/devices", { "AuthToken": localStorage.getItem("AuthToken") });
 
-            const devicesWithStatus = response.data.map((device: DeviceResponse) => ({
-                ...device,
-                device: {
-                    ...device.device,
-                    status: device.status,
-                    allerta: device.allerta,
-                },
-            }));
 
-            setDevices(devicesWithStatus);
+            setDevices(response.data);
             setError("");
         } catch (err) {
             console.error("Error fetching devices", err);
@@ -79,12 +68,11 @@ const ManagementPage: React.FC = () => {
 
             console.log(response.data);
 
-            // Update state with the response
             setDevEui(response.data.respons.DevEui);
             setAppKey(response.data.respons.AppKey);
             setMessage("Device added successfully!");
 
-            // Reset form and fetch updated devices list
+
             resetForm();
             fetchDevices();
         } catch (error) {
@@ -97,10 +85,10 @@ const ManagementPage: React.FC = () => {
         try {
             setMessage("");
 
-            // Send delete request to the server
+
             await axios.get(`http://127.0.0.1:5000/delete/${deviceId}`);
 
-            // Update the UI by removing the deleted device
+
             setDevices(devices.filter(item => item.device.deviceId !== deviceId));
             setMessage(`Device ${deviceId} deleted successfully!`);
         } catch (error) {
@@ -109,27 +97,25 @@ const ManagementPage: React.FC = () => {
         }
     };
 
-    // New function to handle alarm actions
     const handleAlarmAction = async (deviceId: string, payload: string) => {
         try {
             setMessage("");
 
-            // Prepare the request data
             const requestData = {
                 deviceId,
                 AuthToken: localStorage.getItem("AuthToken"),
                 payload
-
             };
 
             console.log(requestData);
-            // Send the request to the server
+
             await axios.post("http://127.0.0.1:5000/switchst", requestData, {
                 headers: { "Content-Type": "application/json" }
             });
 
-            // Show success message
+
             setMessage(`Alarm ${payload === "on" ? "activated" : "deactivated"} for device ${deviceId}`);
+
 
             const updatedDevices = devices.map(item => {
                 if (item.device.deviceId === deviceId) {
@@ -137,7 +123,7 @@ const ManagementPage: React.FC = () => {
                         ...item,
                         device: {
                             ...item.device,
-                            status: payload === "on" ? "active" : "inactive"
+                            status: payload === "on" ? 1 : 0
                         }
                     };
                 }
@@ -217,7 +203,7 @@ const ManagementPage: React.FC = () => {
                                             </Typography>
                                             <Box>
                                                 <Chip
-                                                    label={deviceItem.device.status ? "active" : "disabled"}
+                                                    label={deviceItem.device.status ? "active" : "inactive"}
                                                     color={getStatusColor(deviceItem.device.status) as any}
                                                     size="small"
                                                     sx={{ mr: 1 }}

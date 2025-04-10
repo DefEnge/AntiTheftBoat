@@ -10,8 +10,11 @@ import paho.mqtt.client as mqtt
 import binascii
 import base64
 import time
-import datetime
+from math import sin, cos, radians, degrees, asin, atan2
+from dateutil import parser
+from datetime import datetime
 from dotenv import load_dotenv
+
 
 load_dotenv()
 
@@ -43,55 +46,6 @@ def filter_message(msg):
 def on_connect(client, userdata, flags, rc, prop):
     print("connected with result code " + str(rc))
     client.subscribe("#")
-
-
-def on_message(client, userdata, msg):
-    topic = str(msg.topic)
-    message_str = msg.payload.decode("utf-8")
-
-    try:
-        message_json = json.loads(message_str)
-        # FIXME: REMEMBER THERE I A PROBLEM WITH THE FILTER.
-        filtered = filter_message(message_json)
-        print(json.dumps(filtered, indent=2))  # Stampi solo i campi utili
-
-        payload_text = filtered["payload_decoded"]
-        device_id = filtered["device_id"]
-        timestamp = filter["timestamp"]
-        direzione, flusso = payload_text.split(";")
-
-        if "Tutto Ok" not in payload_text or "Spento" not in payload_text:
-            with app.app_context():
-                device = Device.query.filter_by(device_id=device_id).first()
-                if device and not device.alarm:
-                    print(f"Setting alarm ON for device {device_id}")
-                    device.alarm = True
-
-                if device.alarm:
-                    new_packet = AlarmMessage(
-                        device_id=device_id,
-                        time=timestamp,
-                        velocity=flusso,
-                        direction=direzione,
-                    )
-                    db.session.add(new_packet)
-
-                db.session.commit()
-
-    except Exception as e:
-        print("Errore nel parsing o nel filtro del messaggio:", e)
-
-
-client = mqtt.Client(
-    mqtt.CallbackAPIVersion.VERSION2,
-    client_id="pyintegration",
-    userdata=None,
-    protocol=4,
-)
-client.on_connect = on_connect
-client.on_message = on_message
-client.username_pw_set(APPLICATION_ID, MQTT_APIKEY)
-client.connect(MQTT_BROKER, 1883, 60)
 
 
 def send_register(device: str, username: str, plate: str):
@@ -334,20 +288,18 @@ bcrypt = Bcrypt(app)
 
 
 class Device(db.Model):
-    id = db.Column(
-        db.Integer, primary_key=True, autoincrement=True
-    )  # Primary key with auto-increment
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     device_id = db.Column(db.String(100), nullable=False, unique=True)
     targa = db.Column(db.String(20), nullable=False)
     username = db.Column(db.String(80), unique=False, nullable=False)
     alarm = db.Column(db.Boolean, default=False)
     status = db.Column(db.Integer, default=0)
+    current_lat = db.Column(db.Float, default=37.514387)
+    current_long = db.Column(db.Float, default=15.106798)
 
 
 class AlarmMessage(db.Model):
-    id = db.Column(
-        db.Integer, primary_key=True, autoincrement=True
-    )  # Primary key with auto-increment
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     device_id = db.Column(db.String(100), nullable=False, unique=False)
     time = db.Column(db.String(80), nullable=False)
     velocity = db.Column(db.String(80), nullable=False)
@@ -372,6 +324,59 @@ class UserTokens(db.Model):
 
 with app.app_context():
     db.create_all()
+
+
+def on_message(client, userdata, msg):
+    topic = str(msg.topic)
+    message_str = msg.payload.decode("utf-8")
+
+    try:
+        message_json = json.loads(message_str)
+        filtered = filter_message(message_json)
+        print(json.dumps(filtered, indent=2))
+        print("----Data----")
+        payload_text = filtered["payload_decoded"]
+        print(payload_text)
+        device_id = filtered["device_id"]
+        timestamp = filtered["timestamp"]
+        direzione = None
+        flusso = None
+        if ";" in payload_text:
+            direzione, flusso = payload_text.split(";")
+            with app.app_context():
+                print("----Device----")
+                device = Device.query.filter_by(device_id=device_id).first()
+                print("--------------------")
+                print(device)
+                if device and not device.alarm and device.status == 1:
+                    print(f"Setting alarm ON for device {device_id}")
+                    device.alarm = True
+
+                if device.alarm:
+                    new_packet = AlarmMessage(
+                        device_id=device_id,
+                        time=timestamp,
+                        velocity=flusso,
+                        direction=direzione,
+                    )
+                    db.session.add(new_packet)
+
+                db.session.commit()
+
+    except Exception as e:
+        print("Errore nel parsing o nel filtro del messaggio:", e)
+
+
+client = mqtt.Client(
+    mqtt.CallbackAPIVersion.VERSION2,
+    client_id="pyintegration",
+    userdata=None,
+    protocol=4,
+)
+client.on_connect = on_connect
+client.on_message = on_message
+client.username_pw_set(APPLICATION_ID, MQTT_APIKEY)
+client.connect(MQTT_BROKER, 1883, 60)
 
 
 @app.route("/register", methods=["POST"])
@@ -409,7 +414,6 @@ def delete(deviceid):
         if not device or respons == "err":
             return jsonify({"error": f"Device with ID {deviceid} not found"}), 404
 
-        # Delete the device
         db.session.delete(device)
         db.session.commit()
 
@@ -471,6 +475,91 @@ def list_devices():
     # return get_devices()
 
 
+@app.route("/alertmonitor", methods=["POST"])
+def monitor_alert():
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "No json received"}), 400
+    print("-----------------------")
+    deviceid = data.get("deviceId")
+    last_packet = (
+        AlarmMessage.query.filter_by(device_id=deviceid)
+        .order_by(AlarmMessage.id.desc())
+        .first()
+    )
+    print("-----------------------")
+    previous_packet = (
+        AlarmMessage.query.filter_by(device_id=deviceid)
+        .order_by(AlarmMessage.id.desc())
+        .offset(2)
+        .first()
+    )
+    print("-----------------------")
+
+    time1 = last_packet.time
+    time2 = previous_packet.time
+
+    time1 = time1.rstrip("Z")[:26]
+    time2 = time2.rstrip("Z")[:26]
+
+    dt1 = datetime.strptime(time1, "%Y-%m-%dT%H:%M:%S.%f")
+    dt2 = datetime.strptime(time2, "%Y-%m-%dT%H:%M:%S.%f")
+
+    second1 = int(dt1.timestamp())
+    second2 = int(dt2.timestamp())
+
+    time3 = (second1 / 3600) - (second2 / 3600)
+
+    v = last_packet.velocity
+    direction = last_packet.direction
+    R = 3440.065
+
+    distanza = float(v) * time3
+
+    device = Device.query.filter_by(device_id=deviceid).first()
+
+    latrad = radians(device.current_lat)
+
+    lonrad = radians(device.current_long)
+
+    distanza_angolare = distanza / R
+    directionrad = radians(int(direction))
+
+    new_lat = asin(
+        sin(latrad) * cos(distanza_angolare)
+        + cos(latrad) * sin(distanza_angolare) * cos(directionrad)
+    )
+    new_lon = lonrad + atan2(
+        sin(directionrad) * sin(distanza_angolare) * cos(latrad),
+        cos(distanza_angolare) - sin(latrad) * sin(new_lat),
+    )
+    new_lat = degrees(new_lat)
+    new_lon = degrees(new_lon)
+
+    print("-----------------------")
+
+    print("dt1: ", time1)
+    print("dt2: ", time2)
+    print("dt3: ", time3)
+    print("v: ", v)
+    print("dir: ", direction)
+    print("lat: ", new_lat)
+    print("lon: ", new_lon)
+
+    payload = {
+        "speed": v,
+        "direction": direction,
+        "latitude": new_lat,
+        "longitude": new_lon,
+        "timestamp": time1,
+    }
+    device.current_lat = new_lat
+    device.current_long = new_lon
+    db.session.commit()
+
+    return jsonify(payload)
+
+
 @app.route("/switchst", methods=["POST"])
 def change_status():
     data = request.get_json()
@@ -480,18 +569,14 @@ def change_status():
     user_token = data.get("AuthToken")
     deviceid = data.get("deviceId")
     change_st = data.get("payload")
-    print(change_st)
     change_st = change_st.encode("utf-8")
     b64_st = base64.b64encode(change_st)
 
-    # topic = "v3/anti-theft-boat0@ttn/devices/" + deviceid + "/down/replace"
-
-    # FIXME:REMEMBER TO CHANGE FROM ANGELO TO DEVICEID
-    topic = "v3/anti-theft-boat0@ttn/devices/" + "angelo" + "/down/replace"
+    topic = "v3/anti-theft-boat0@ttn/devices/" + deviceid + "/down/replace"
 
     payload = {
         "downlinks": [
-            {"f_port": 15, "frm_payload": b64_st.decode(), "priority": "NORMAL"}
+            {"f_port": 1, "frm_payload": b64_st.decode(), "priority": "NORMAL"}
         ]
     }
     print("-------------------")
@@ -501,12 +586,26 @@ def change_status():
     if not username_bytoken:
         return jsonify({"error": "no valid token"}, 400)
 
-    # FIXME:solo i proprietari possono cambiare lo stato ad off.
-    deviceid = Device.query.filter_by(
+    device = Device.query.filter_by(
         username=username_bytoken.username, device_id=deviceid
     ).first()
 
-    if not username_bytoken.username or not deviceid:
+    print(change_st)
+    if change_st == b"off":
+        print("------------off")
+        device.alarm = False
+        device.status = 0
+        device.current_lat = 37.514387
+        device.current_long = 15.106798
+        AlarmMessage.query.filter_by(device_id=device.device_id).delete()
+
+    if change_st == b"on":
+        print("--------------on")
+        device.status = 1
+
+    db.session.commit()
+
+    if not username_bytoken.username or not device:
         return jsonify({"error": "Invalid device or user"}), 401
 
     client_send = mqtt.Client(
@@ -524,23 +623,6 @@ def change_status():
     client.publish(topic, json.dumps(payload))
 
     return "200"
-
-
-#
-# @app.route("/pair", methods=["POST"])
-# def pair_devices():
-#     data = request.get_json()
-#     username = data.get("username")
-#     device = data.get("device")
-#
-#     user = User.query.filter_by(username=username).first()
-#     deviceid = Device.query.filter_by(device_id=device).first()
-#
-#     if not user or not deviceid:
-#         return jsonify({"error": "Invalid credentials"}), 401
-#
-#     return jsonify({"paired_device": device, "user": username})
-#
 
 
 @app.route("/signin", methods=["POST"])
