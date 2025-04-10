@@ -12,7 +12,7 @@ import base64
 import time
 from math import sin, cos, radians, degrees, asin, atan2
 from dateutil import parser
-from datetime import datetime
+import datetime
 from dotenv import load_dotenv
 
 
@@ -502,8 +502,8 @@ def monitor_alert():
     time1 = time1.rstrip("Z")[:26]
     time2 = time2.rstrip("Z")[:26]
 
-    dt1 = datetime.strptime(time1, "%Y-%m-%dT%H:%M:%S.%f")
-    dt2 = datetime.strptime(time2, "%Y-%m-%dT%H:%M:%S.%f")
+    dt1 = datetime.datetime.strptime(time1, "%Y-%m-%dT%H:%M:%S.%f")
+    dt2 = datetime.datetime.strptime(time2, "%Y-%m-%dT%H:%M:%S.%f")
 
     second1 = int(dt1.timestamp())
     second2 = int(dt2.timestamp())
