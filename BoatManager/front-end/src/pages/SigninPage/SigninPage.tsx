@@ -28,14 +28,13 @@ const SignIn: React.FC = () => {
         event.preventDefault();
         setLoading(true)
 
-        setError(""); // Reset any previous errors
+        setError("");
 
         try {
             console.log(formData);
             const response = await axios.post("http://127.0.0.1:5000/signin", formData);
 
 
-            // Handle the successful response (if needed)
             console.log("Response:", response);
             alert("Sign in successful!");
 
@@ -50,7 +49,7 @@ const SignIn: React.FC = () => {
             console.error("Error:", error);
             setError("Something went wrong. Please try again.");
         } finally {
-            setLoading(false); // End loading state
+            setLoading(false);
             navigate("/");
         }
     };
