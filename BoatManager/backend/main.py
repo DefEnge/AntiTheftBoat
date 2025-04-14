@@ -536,9 +536,10 @@ def monitor_alert():
     new_lat = degrees(new_lat)
     new_lon = degrees(new_lon)
 
-    device.current_lat = new_lat
-    device.current_long = new_lon
-    db.session.commit()
+    with app.app_context():
+        device.current_lat = new_lat
+        device.current_long = new_lon
+        db.session.commit()
 
     print("-----------------------")
 
