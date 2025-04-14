@@ -536,6 +536,10 @@ def monitor_alert():
     new_lat = degrees(new_lat)
     new_lon = degrees(new_lon)
 
+    device.current_lat = new_lat
+    device.current_long = new_lon
+    db.session.commit()
+
     print("-----------------------")
 
     print("dt1: ", time1)
@@ -553,9 +557,6 @@ def monitor_alert():
         "longitude": new_lon,
         "timestamp": time1,
     }
-    device.current_lat = new_lat
-    device.current_long = new_lon
-    db.session.commit()
 
     return jsonify(payload)
 
