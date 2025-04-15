@@ -34,7 +34,7 @@ const DeviceListPage: React.FC = () => {
     useEffect(() => {
         const fetchDevices = async () => {
             try {
-                const response = await axios.get("http://127.0.0.1:5000/devices");
+                const response = await axios.get("http://138.197.187.41:5000/devices");
                 //response.data.end_devices.... per leggere da ttn
                 const fetchedDevices: User[] = response.data.map((device: any, index: number) => ({
                     id: index + 1,
@@ -59,12 +59,11 @@ const DeviceListPage: React.FC = () => {
         const devicesToDelete = rows.filter((row) => selectedRows.includes(row.id));
 
         const deleteRequests = devicesToDelete.map((device) =>
-            axios.get(`http://127.0.0.1:5000/delete/${device.deviceId}`).catch((err) => { throw (err) }) // Catch errors to avoid stopping execution
+            axios.get(`http://138.197.187.41:5000/delete/${device.deviceId}`).catch((err) => { throw (err) }) // Catch errors to avoid stopping execution
         );
 
         const results = await Promise.allSettled(deleteRequests);
 
-        // Check if any request failed
         const flag = results.every((result) => result.status === "fulfilled");
         results.every((result) => { console.log(result.status) });
 

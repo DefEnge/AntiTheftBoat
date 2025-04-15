@@ -5,18 +5,31 @@ import CloudIcon from '@mui/icons-material/Cloud';
 import CampaignIcon from '@mui/icons-material/Campaign';
 import LoginIcon from '@mui/icons-material/Login';
 import LogoutIcon from '@mui/icons-material/Logout';
-import React from "react";
+
+import React, { useState, useEffect } from "react";
+
 import { Links, getNavLinks } from "../../constants";
 import MenuButton from "../Button/MenuButton";
 import { MenuButtonWrapper } from "../Wrapper/style";
 import { Logout } from "@mui/icons-material";
+import axios from "axios";
 
 const NavBar: React.FC = () => {
 
     const [open, setOpen] = React.useState(false);
-    const [alerts, setAlerts] = React.useState<number>(1);
+    const [alerts, setAlerts] = React.useState<number>(0);
     const isLoggedIn = !!localStorage.getItem("AuthToken");
     const NavLinks = getNavLinks(!!isLoggedIn);
+
+    useEffect(() => {
+        fetchCounter();
+    }, []);
+
+    const fetchCounter = async () => {
+        const response = await axios.post("http://138.197.187.41:5000/counteralert");
+
+        setAlerts(response.data.counter);
+    };
 
     const toggleDrawer = (newOpen: boolean) => () => {
         setOpen(newOpen);

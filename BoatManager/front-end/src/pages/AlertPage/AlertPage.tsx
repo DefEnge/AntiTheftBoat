@@ -58,25 +58,38 @@ const AlertPage: React.FC = () => {
     const [monitorLoading, setMonitorLoading] = useState<boolean>(false);
     const [monitorError, setMonitorError] = useState<string>("");
 
-    // Fetch devices on component mount
     useEffect(() => {
         fetchDevices();
-
-        // Set up polling to refresh data every 30 seconds
-        const intervalId = setInterval(fetchDevices, 5000);
-
-        // Clean up interval on component unmount
-        return () => clearInterval(intervalId);
     }, []);
+
+    useEffect(() => {
+        let intervalId: NodeJS.Timeout | null = null;
+
+
+        if (modalOpen && selectedDeviceId) {
+            fetchDeviceMonitorData(selectedDeviceId);
+
+
+            intervalId = setInterval(() => {
+                fetchDeviceMonitorData(selectedDeviceId);
+            }, 5000);
+        }
+
+
+        return () => {
+            if (intervalId) {
+                clearInterval(intervalId);
+            }
+        };
+    }, [modalOpen, selectedDeviceId]);
 
     const fetchDevices = async () => {
         try {
             setLoading(true);
-            const response = await axios.post("http://127.0.0.1:5000/devices", { "AuthToken": localStorage.getItem("AuthToken") });
+            const response = await axios.post("http://138.197.187.41:5000/devices", { "AuthToken": localStorage.getItem("AuthToken") });
 
             console.log("API Response:", response.data);
 
-            // Check the structure of the first device
             if (response.data.length > 0) {
                 console.log("First device:", response.data[0]);
                 console.log("allerta value:", response.data[0].device.allerta);
@@ -100,9 +113,10 @@ const AlertPage: React.FC = () => {
         try {
             setMonitorLoading(true);
             setMonitorError("");
-            setMonitorData(null);
 
-            const response = await axios.post("http://127.0.0.1:5000/alertmonitor", {
+            console.log("Fetching monitor data for device:", deviceId);
+
+            const response = await axios.post("http://138.197.187.41:5000/alertmonitor", {
                 deviceId: deviceId,
                 "AuthToken": localStorage.getItem("AuthToken")
             });
@@ -120,7 +134,6 @@ const AlertPage: React.FC = () => {
     const handleCardClick = (deviceId: string) => {
         setSelectedDeviceId(deviceId);
         setModalOpen(true);
-        fetchDeviceMonitorData(deviceId);
     };
 
     const handleCloseModal = () => {
@@ -357,7 +370,6 @@ const AlertPage: React.FC = () => {
                 </Modal>
             </ContentWrapper>
 
-            {/* Add a style tag for the blinking animation */}
             <style jsx global>{`
                 @keyframes blinkingBackground {
                     0% { background-color: rgba(255, 0, 0, 0.7); }
@@ -370,6 +382,3 @@ const AlertPage: React.FC = () => {
 };
 
 export default AlertPage;
-
-
-

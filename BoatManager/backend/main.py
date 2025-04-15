@@ -16,6 +16,7 @@ import datetime
 from dotenv import load_dotenv
 
 
+
 load_dotenv()
 
 APIKEY = os.getenv("APIKEY")
@@ -477,87 +478,97 @@ def list_devices():
 
 @app.route("/alertmonitor", methods=["POST"])
 def monitor_alert():
-    data = request.get_json()
-    if not data:
-        return jsonify({"error": "No json received"}), 400
-    print("-----------------------")
-    deviceid = data.get("deviceId")
-    last_packet = (
-        AlarmMessage.query.filter_by(device_id=deviceid)
-        .order_by(AlarmMessage.id.desc())
-        .first()
-    )
-    print("-----------------------")
-    previous_packet = (
-        AlarmMessage.query.filter_by(device_id=deviceid)
-        .order_by(AlarmMessage.id.desc())
-        .offset(2)
-        .first()
-    )
-    print("-----------------------")
-
-    time1 = last_packet.time
-    time2 = previous_packet.time
-
-    time1 = time1.rstrip("Z")[:26]
-    time2 = time2.rstrip("Z")[:26]
-
-    dt1 = datetime.datetime.strptime(time1, "%Y-%m-%dT%H:%M:%S.%f")
-    dt2 = datetime.datetime.strptime(time2, "%Y-%m-%dT%H:%M:%S.%f")
-
-    second1 = int(dt1.timestamp())
-    second2 = int(dt2.timestamp())
-
-    time3 = (second1 / 3600) - (second2 / 3600)
-
-    v = last_packet.velocity
-    direction = last_packet.direction
-    R = 3440.065
-
-    distanza = float(v) * time3
-
-    device = Device.query.filter_by(device_id=deviceid).first()
-
-    latrad = radians(device.current_lat)
-
-    lonrad = radians(device.current_long)
-
-    distanza_angolare = distanza / R
-    directionrad = radians(int(direction))
-
-    new_lat = asin(
-        sin(latrad) * cos(distanza_angolare)
-        + cos(latrad) * sin(distanza_angolare) * cos(directionrad)
-    )
-    new_lon = lonrad + atan2(
-        sin(directionrad) * sin(distanza_angolare) * cos(latrad),
-        cos(distanza_angolare) - sin(latrad) * sin(new_lat),
-    )
-    new_lat = degrees(new_lat)
-    new_lon = degrees(new_lon)
-
     with app.app_context():
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "No json received"}), 400
+        print("-----------------------")
+        deviceid = data.get("deviceId")
+        print("-------------device ", deviceid);
+        last_packet = (AlarmMessage.query.filter_by(device_id=deviceid).order_by(AlarmMessage.id.desc()).first())
+
+        print("---------quest è la query:", last_packet)
+        print("-----------------------")
+        previous_packet = (
+            AlarmMessage.query.filter_by(device_id=deviceid)
+            .order_by(AlarmMessage.id.desc())
+            .offset(2)
+            .first()
+        )
+        print("-----------------------")
+
+        time1 = last_packet.time
+        time2 = previous_packet.time
+
+        time1 = time1.rstrip("Z")[:26]
+        time2 = time2.rstrip("Z")[:26]
+
+        dt1 = datetime.datetime.strptime(time1, "%Y-%m-%dT%H:%M:%S.%f")
+        dt2 = datetime.datetime.strptime(time2, "%Y-%m-%dT%H:%M:%S.%f")
+
+        second1 = int(dt1.timestamp())
+        second2 = int(dt2.timestamp())
+        time3 = second1 - second2 
+
+        print("_________________--", time3)
+        time3 = (second1 / 3600) - (second2 / 3600)
+
+        v = last_packet.velocity
+        direction = last_packet.direction
+        R = 3440.065
+
+        distanza = float(v) * time3
+        print("distanzaaa----------- ", distanza)
+
+        device = Device.query.filter_by(device_id=deviceid).first()
+
+        latrad = radians(device.current_lat)
+
+        lonrad = radians(device.current_long)
+
+        distanza_angolare = distanza / R
+        directionrad = radians(int(direction))
+        print("lat", latrad)
+        print("long", lonrad)
+        print("------------")
+
+        new_lat = asin(
+            sin(latrad) * cos(distanza_angolare)
+            + cos(latrad) * sin(distanza_angolare) * cos(directionrad)
+        )
+        new_lon = lonrad + atan2(
+            sin(directionrad) * sin(distanza_angolare) * cos(latrad),
+            cos(distanza_angolare) - sin(latrad) * sin(new_lat),
+        )
+        new_lat = degrees(new_lat)
+        new_lon = degrees(new_lon)
+        print("new lat", new_lat)
+        print("new long", new_lon)
+        print("------------")
+
         device.current_lat = new_lat
         device.current_long = new_lon
+        
+
+        print("-----------------------")
+
+        print("dt1: ", time1)
+        print("dt2: ", time2)
+        print("dt3: ", time3)
+        print("v: ", v)
+        print("dir: ", direction)
+        print("lat: ", device.current_lat)
+        print("lon: ", device.current_long)
+
+        payload = {
+            "speed": v,
+            "direction": direction,
+            "latitude": new_lat,
+            "longitude": new_lon,
+            "timestamp": time1,
+        }
+
         db.session.commit()
-
-    print("-----------------------")
-
-    print("dt1: ", time1)
-    print("dt2: ", time2)
-    print("dt3: ", time3)
-    print("v: ", v)
-    print("dir: ", direction)
-    print("lat: ", new_lat)
-    print("lon: ", new_lon)
-
-    payload = {
-        "speed": v,
-        "direction": direction,
-        "latitude": new_lat,
-        "longitude": new_lon,
-        "timestamp": time1,
-    }
 
     return jsonify(payload)
 
@@ -626,6 +637,10 @@ def change_status():
 
     return "200"
 
+
+@app.route("/counteralert", methods=["GET"])
+def counter():
+    return jsonify({"counter": counter}), 
 
 @app.route("/signin", methods=["POST"])
 def signin():
@@ -717,4 +732,4 @@ def mqtt_client():
 if __name__ == "__main__":
     mqtt_t = threading.Thread(target=mqtt_client)
     mqtt_t.start()
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port= 5000, debug=True)

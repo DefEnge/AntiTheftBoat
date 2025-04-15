@@ -36,7 +36,7 @@ const LoginPage: React.FC = () => {
 
     const onSubmit: SubmitHandler<LoginFormInputs> = async (data) => {
         try {
-            const response = await axios.post("http://127.0.0.1:5000/login", data, { withCredentials: true });
+            const response = await axios.post("http://138.197.187.41:5000/login", data, { withCredentials: true });
             console.log("Login successful", response.data);
             localStorage.setItem('AuthToken', response.data.auth_token);
             navigate("/management");

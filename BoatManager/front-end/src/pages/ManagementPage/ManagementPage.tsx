@@ -39,7 +39,7 @@ const ManagementPage: React.FC = () => {
     const fetchDevices = async () => {
         try {
             setLoading(true);
-            const response = await axios.post("http://127.0.0.1:5000/devices", { "AuthToken": localStorage.getItem("AuthToken") });
+            const response = await axios.post("http://138.197.187.41:5000/devices", { "AuthToken": localStorage.getItem("AuthToken") });
 
 
             setDevices(response.data);
@@ -62,7 +62,7 @@ const ManagementPage: React.FC = () => {
                 targa,
             };
 
-            const response = await axios.post("http://127.0.0.1:5000/register", requestData, {
+            const response = await axios.post("http://138.197.187.41:5000/register", requestData, {
                 headers: { "Content-Type": "application/json" }
             });
 
@@ -86,7 +86,7 @@ const ManagementPage: React.FC = () => {
             setMessage("");
 
 
-            await axios.get(`http://127.0.0.1:5000/delete/${deviceId}`);
+            await axios.get(`http://138.197.187.41:5000/delete/${deviceId}`);
 
 
             setDevices(devices.filter(item => item.device.deviceId !== deviceId));
@@ -109,7 +109,7 @@ const ManagementPage: React.FC = () => {
 
             console.log(requestData);
 
-            await axios.post("http://127.0.0.1:5000/switchst", requestData, {
+            await axios.post("http://138.197.187.41:5000/switchst", requestData, {
                 headers: { "Content-Type": "application/json" }
             });
 
@@ -226,9 +226,8 @@ const ManagementPage: React.FC = () => {
                                         </Typography>
                                     </CardContent>
                                     <CardActions sx={{ justifyContent: 'space-between', padding: '16px' }}>
-                                        <Button size="small" variant="contained" color="primary">Dettagli</Button>
                                         <Box>
-                                            <Button  //FIXME:do not show allarm off
+                                            <Button
                                                 size="small"
                                                 variant="contained"
                                                 color="success"
@@ -340,7 +339,7 @@ const ManagementPage: React.FC = () => {
                                 justifyContent: "space-between",
                                 width: "100%",
                                 mt: 2,
-                                px: 0  // Remove horizontal padding
+                                px: 0
                             }}>
                                 <Button
                                     variant="outlined"
