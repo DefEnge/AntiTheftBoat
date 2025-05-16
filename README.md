@@ -61,10 +61,10 @@ be sure to change line 78 of the main.cpp file of the porject
 http.begin("http://IP_OF_YOUR_BACKEND/register");  // URL del server
 ```
 
-flash the device through terminal after modifing the platformio.ini  or with vscode extension 
+flash the device through terminal after modifing the platformio.ini with vscode extension or your Text editor of choice
 
 ```
-cd Boat/Barca_finale
+cd Boat/Barca
 pio run -t upload
 
 ```
