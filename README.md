@@ -71,3 +71,78 @@ pio run -t upload
 
 
 
+# Anti-Thief-Boat
+## Project Structure
+
+```text
+BoatManager/
+├── backend/
+│   ├── main.py
+│   ├── .env
+│   └── ...
+├── front-end/
+│   ├── src/
+│   └── ...
+├── requirements.txt
+Boat/
+└── Barca/
+    ├── src/
+    └── platformio.ini
+```
+
+## Features
+
+- Anomaly detection via embedded neural network classifier  
+- Real-time direction and speed monitoring  
+- Low-power sensors with sleep-mode capabilities  
+- Secure LoRaWAN communication via The Things Network  
+- Web interface for device management and position tracking  
+- Remote arm/disarm through TTN downlink  
+
+---
+
+## Extension Board Schema
+
+The hardware setup of the AntiTheftBoat system includes the following components connected to an Arduino Nano ESP32:
+
+- **GY-521 (MPU-6050 Gyroscope/Accelerometer)**
+  - Communication: I2C
+  - VCC → 3.3V
+  - GND → GND
+  - SDA → GPIO21
+  - SCL → GPIO22
+
+- **GY-273 (HMC5883L Magnetometer)**
+  - Communication: I2C
+  - VCC → 3.3V
+  - GND → GND
+  - SDA → GPIO21 (shared)
+  - SCL → GPIO22 (shared)
+
+- **YF-DN50 (Flow Sensor)**
+  - Communication: Digital pulse output
+  - VCC → 5V or regulated 3.3V
+  - GND → GND
+  - Output → GPIO (configured for interrupt-based pulse counting)
+
+- **LoRaWAN communication**
+  - Managed via a TTN-compatible gateway
+  - No wiring required on the board; data is transmitted over LoRa
+
+Each I2C device shares the same SDA and SCL lines to simplify wiring and reduce pin usage. Sensors are placed in sleep mode when inactive to minimize power consumption. The setup is designed for low power and reliable marine operation.
+
+---
+
+## Developed By
+
+- Damiano Vincenzo Coppola  
+- Angelo Spadola  
+- Enrico Sorbello  
+- Santi Lisi  
+
+---
+
+## License
+
+This project is licensed under the MIT License.  
+See the [LICENSE](./LICENSE) file for more information.
